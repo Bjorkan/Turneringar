@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "alwaysStrict": true,
+    "lib": ["DOM", "ES2020"],
+    "module": "none",
+    "noEmitOnError": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "outDir": "frontend/static",
+    "removeComments": false,
+    "rootDir": "frontend/src",
+    "skipLibCheck": true,
+    "target": "ES2020"
+  },
+  "files": ["frontend/src/vue.d.ts", "frontend/src/app.ts", "frontend/src/tv.ts"]
+}

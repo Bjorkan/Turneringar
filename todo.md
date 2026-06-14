@@ -19,15 +19,19 @@
 
 ## Nästa milstolpe
 
+- [x] Anpassa admin- och TV-UI efter inspirationsbilderna i `inspiration/`.
+- [x] Lägg till Dockerfile, compose-exempel och GHCR-publicerande GitHub Actions-workflow.
+- [x] Flytta frontendkod till TypeScript med bygg- och typechecksteg.
 - [ ] Lägg till redigering och borttagning av deltagare/resurser.
-- [ ] Lägg till API-integrationstester för admin-, moderator- och TV-flöden.
-- [ ] Lägg till tydligare adminnavigation per flik.
+- [x] Lägg till API-integrationstester för admin-, moderator- och TV-flöden.
+- [x] Lägg till frontendtester som kör riktiga klickflöden i browser.
+- [x] Lägg till tydligare adminnavigation per flik.
 - [ ] Skapa import/export för deltagare via CSV.
 - [ ] Hantera BYE automatiskt i slutspel.
 - [ ] Gör Live TV-teman konfigurerbara.
 - [ ] Lägg till publik turneringssida utan adminfunktioner.
 - [ ] Spara auditlogg med moderatornamn per resultatuppdatering.
-- [ ] Lägg till Dockerfile för eventserver.
+- [x] Lägg till Dockerfile för eventserver.
 
 ## Senare
 

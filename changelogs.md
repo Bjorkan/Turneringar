@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-06-14
+
+- Dokumenterade UI-riktningen från inspirationsbilderna i `inspiration/`.
+- Omarbetade adminappen mot ljus dashboardlayout med sidomeny, toppbar, kort, statusmärken och tätare tabeller.
+- Omarbetade Live TV mot mörk roterande skärmvy med matchfokus, schema, tabeller, slutspel, resultat och notiser.
+- Bytte frontendens interaktioner till lokalt vendrad Vue 3 för komponentstyrda klick, formulär och SSE-uppdateringar.
+- Lade till Dockerfile, `.dockerignore`, Compose-exempel och GitHub Actions-workflow som testar, bygger och publicerar image till GHCR.
+- Uppdaterade Docker-publicering till `ghcr.io/bjorkan/turneringar` och Docker Hub `bjorkan/turneringar` med `main` som `edge` och releases som `latest`.
+- Flyttade Vue-frontenden till TypeScript-källor under `frontend/src/` med typecheck och byggsteg i workflowen.
+- Byggde ut testsviten med serverbaserade API-integrationstester för admin-, moderator- och TV-flöden, statiska assetkontroller och Docker-smoke i CI.
+- Lade till Playwright-tester i Chromium som klickar igenom adminflöde, moderator-PIN och Live TV.
+
 ## 2026-06-13
 
 - Initierade Turneringar som Python/FastAPI-projekt.

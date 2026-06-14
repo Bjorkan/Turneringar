@@ -1,0 +1,13 @@
+services:
+  turneringar:
+    build:
+      context: .
+    image: bjorkan/turneringar:edge
+    ports:
+      - "8000:8000"
+    environment:
+      ADMIN_PIN: "byt-mig"
+      TURNERINGAR_DB: "/data/turneringar/turneringar.sqlite3"
+    volumes:
+      - ./data/turneringar:/data/turneringar
+    restart: unless-stopped

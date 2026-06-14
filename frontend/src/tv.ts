@@ -1,4 +1,3 @@
-"use strict";
 {
 const { createApp } = Vue;
 const tournamentId = location.pathname.split("/").pop();
