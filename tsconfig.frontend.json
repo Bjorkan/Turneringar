@@ -3,7 +3,7 @@
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
     "alwaysStrict": true,
-    "lib": ["DOM", "ES2020"],
+    "lib": ["DOM", "DOM.Iterable", "ES2020"],
     "module": "none",
     "noEmitOnError": true,
     "noFallthroughCasesInSwitch": true,

@@ -1,6 +1,10 @@
 {
 const { createApp } = Vue;
 
+type ApiBody = BodyInit | Record<string, unknown> | null;
+type ApiOptions = Omit<RequestInit, "body"> & { body?: ApiBody };
+type DateValue = string | number | Date | null | undefined;
+
 const navItems = [
   ["Översikt", "home"],
   ["Turneringar", "cup"],
@@ -33,7 +37,7 @@ const eventText = {
   result_updated: "Resultat rapporterat",
 };
 
-const api = async (path, options = {}) => {
+const api = async (path: string, options: ApiOptions = {}) => {
   const response = await fetch(path, {
     method: options.method || "GET",
     credentials: "include",
@@ -46,19 +50,21 @@ const api = async (path, options = {}) => {
   return payload;
 };
 
-const formPayload = (form) => {
-  const payload = {};
+const formPayload = (form: HTMLFormElement) => {
+  const payload: Record<string, FormDataEntryValue> = {};
   for (const [key, value] of new FormData(form).entries()) payload[key] = value;
   return payload;
 };
 
-const parseDate = (value) => {
+const parseDate = (value: DateValue) => {
   if (!value) return null;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
-const formatDate = (value, options = { day: "numeric", month: "short", year: "numeric" }) => {
+const defaultDateFormat: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" };
+
+const formatDate = (value: DateValue, options: Intl.DateTimeFormatOptions = defaultDateFormat) => {
   const date = parseDate(value);
   return date ? new Intl.DateTimeFormat("sv-SE", options).format(date) : value || "-";
 };
@@ -361,9 +367,9 @@ const TournamentView = {
     },
     knockoutRounds() {
       const knockout = this.matches.filter((match) => match.stage_kind === "knockout");
-      return [...new Set(knockout.map((match) => match.round))]
+      return [...new Set(knockout.map((match) => Number(match.round)))]
         .sort((a, b) => a - b)
-        .map((round) => ({ round, matches: knockout.filter((match) => match.round === round) }));
+        .map((round) => ({ round, matches: knockout.filter((match) => Number(match.round) === round) }));
     },
   },
   watch: {

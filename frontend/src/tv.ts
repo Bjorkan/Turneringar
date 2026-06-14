@@ -3,6 +3,8 @@ const { createApp } = Vue;
 const tournamentId = location.pathname.split("/").pop();
 const slideSeconds = 10;
 
+type DateValue = string | number | Date | null | undefined;
+
 const eventText = {
   participant_added: "Deltagare tillagd",
   resource_added: "Resurs tillagd",
@@ -19,13 +21,13 @@ const api = async (path) => {
   return response.json();
 };
 
-const parseDate = (value) => {
+const parseDate = (value: DateValue) => {
   if (!value) return null;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
-const formatDate = (value) => {
+const formatDate = (value: DateValue) => {
   const date = parseDate(value);
   return date ? new Intl.DateTimeFormat("sv-SE", { day: "numeric", month: "short", year: "numeric" }).format(date) : value || "-";
 };
@@ -106,9 +108,9 @@ createApp({
     },
     knockoutRounds() {
       const knockout = this.matches.filter((match) => match.stage_kind === "knockout");
-      return [...new Set(knockout.map((match) => match.round))]
+      return [...new Set(knockout.map((match) => Number(match.round)))]
         .sort((a, b) => a - b)
-        .map((round) => ({ round, matches: knockout.filter((match) => match.round === round) }));
+        .map((round) => ({ round, matches: knockout.filter((match) => Number(match.round) === round) }));
     },
   },
   mounted() {

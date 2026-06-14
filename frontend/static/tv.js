@@ -107,9 +107,9 @@ createApp({
     },
     knockoutRounds() {
       const knockout = this.matches.filter((match) => match.stage_kind === "knockout");
-      return [...new Set(knockout.map((match) => match.round))]
+      return [...new Set(knockout.map((match) => Number(match.round)))]
         .sort((a, b) => a - b)
-        .map((round) => ({ round, matches: knockout.filter((match) => match.round === round) }));
+        .map((round) => ({ round, matches: knockout.filter((match) => Number(match.round) === round) }));
     },
   },
   mounted() {
