@@ -78,6 +78,9 @@ Jag lade till `parse_limited_int()` i `backend/turneringar/main.py` för struktu
 
 13. Ogiltiga datum kan lagras och krascha senare schemaläggning. `starts_at` tas emot som valfri sträng och `schedule_matches()` kör `datetime.fromisoformat()` utan felöversättning. Se `backend/turneringar/main.py:217`, `backend/turneringar/main.py:298`, `backend/turneringar/services.py:25`, `backend/turneringar/services.py:347`.
 
+Status: Löst
+Jag lade till `parse_local_datetime_value()` i `backend/turneringar/main.py`, som återanvänder service-lagrets ISO-parser och översätter ogiltiga datum till `400`. Skapande av turnering validerar nu `starts_at` innan värdet skickas till `store.create_tournament()`. Inställningsuppdateringen validerar också `starts_at`, inklusive den fallback som används när fältet saknas, så schemaläggaren får inte längre ett trasigt lagrat datum. Regressionstestet `backend/tests/test_api.py::test_invalid_tournament_dates_return_400` verifierar både create- och settings-vägen med `not-a-date`.
+
 14. Moderator-scope valideras inte mot turneringen. `create_moderator_token()` accepterar vilket `resource_id` som helst som finns i databasen; en resurs från en annan turnering ger en moderator med dött eller felaktigt scope. Saknas resurs blir det FK/500 i stället för 400. Se `backend/turneringar/main.py:422-435`, `backend/turneringar/store.py:338-353`.
 
 15. Resultat på avslutade matcher kan ändras via UI utan någon spärr eller konsekvenshantering. Knappen heter "Resultat", men dialogen har fortfarande "Avsluta match" aktiv även för completed. Backend tillåter `update_match_result()` på completed och försöker propagatera vidare, men hoppar över redan completed downstreammatcher. Det kan göra bracket och historik inkonsekventa. Se `frontend/src/admin/AdminApp.tsx:1018-1021`, `frontend/src/admin/AdminApp.tsx:1178-1184`, `backend/turneringar/services.py:532-573`, `backend/turneringar/services.py:612-633`.

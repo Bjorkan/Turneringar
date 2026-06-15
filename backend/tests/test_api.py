@@ -386,6 +386,34 @@ def test_tournament_structure_values_are_limited(client: ApiClient) -> None:
     assert response.status_code == 400
 
 
+def test_invalid_tournament_dates_return_400(client: ApiClient) -> None:
+    login(client)
+
+    response = client.post("/api/tournaments", json={"name": "Trasig tid", "starts_at": "not-a-date"})
+    assert response.status_code == 400
+    assert "giltigt datum" in response.text
+
+    response = client.post(
+        "/api/tournaments",
+        json={"name": "Rimlig tid", "starts_at": "2026-06-13T09:00"},
+    )
+    assert response.status_code == 200
+    tournament_id = response.json()["id"]
+
+    response = client.patch(
+        f"/api/tournaments/{tournament_id}/settings",
+        json={
+            "starts_at": "not-a-date",
+            "match_minutes": 20,
+            "break_minutes": 5,
+            "group_count": 2,
+            "qualifiers_per_group": 1,
+        },
+    )
+    assert response.status_code == 400
+    assert "giltigt datum" in response.text
+
+
 def test_static_frontends_are_served(client: ApiClient) -> None:
     assert client.get("/").status_code == 200
     assert client.get("/admin").status_code == 200

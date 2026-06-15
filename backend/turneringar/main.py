@@ -78,6 +78,17 @@ def parse_limited_int(
     return value
 
 
+def parse_local_datetime_value(value: Any, label: str, default: str | None = None) -> str | None:
+    if value is None or value == "":
+        return default
+    text = str(value)
+    try:
+        services.parse_local_datetime(text)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"{label} måste vara ett giltigt datum.") from exc
+    return text
+
+
 def require_text(payload: dict[str, Any], key: str, label: str) -> str:
     value = str(payload.get(key, "")).strip()
     if not value:
@@ -246,7 +257,7 @@ async def create_tournament(request: Request) -> dict[str, Any]:
             tournament_id = store.create_tournament(
                 conn,
                 name,
-                starts_at=payload.get("starts_at") or None,
+                starts_at=parse_local_datetime_value(payload.get("starts_at"), "Start"),
                 group_count=parse_limited_int(payload, "group_count", "Grupper", 2, MAX_GROUP_COUNT),
                 qualifiers_per_group=parse_limited_int(
                     payload,
@@ -334,7 +345,7 @@ async def update_settings(request: Request, tournament_id: int) -> dict[str, Any
             store.update_tournament_settings(
                 conn,
                 tournament_id,
-                str(payload.get("starts_at") or store.default_start_time()),
+                parse_local_datetime_value(payload.get("starts_at"), "Start", store.default_start_time()),
                 parse_int(payload.get("match_minutes"), 20) or 20,
                 parse_int(payload.get("break_minutes"), 5) or 5,
                 parse_limited_int(payload, "group_count", "Grupper", 2, MAX_GROUP_COUNT),
