@@ -727,15 +727,26 @@ function TournamentView({
     }
   };
 
-  const postAction = async (path: string, message: string) => {
+  const postAction = async (path: string, message: string, body: Record<string, unknown> = {}) => {
     onNotice("Jobbar...", "info");
     try {
-      await api(path, { method: "POST", body: {} });
+      await api(path, { method: "POST", body });
       onNotice(message);
       await load();
     } catch (error) {
       onError(error);
     }
+  };
+
+  const regenerateStructure = async () => {
+    const confirmReset = matches.length > 0;
+    if (
+      confirmReset
+      && !window.confirm("Det här bygger om gruppspel och slutspel. Befintliga matcher, resultat och schema ersätts.")
+    ) {
+      return;
+    }
+    await postAction(`/api/tournaments/${id}/generate`, "Bracket skapad.", { confirm_reset: confirmReset });
   };
 
   const openScoreDialog = (match: Match) => {
@@ -834,7 +845,7 @@ function TournamentView({
               <section className="panel" id="slutspel">
                 <div className="panel-head">
                   <div><h2>Slutspel - översikt</h2><p>{knockoutRounds.length ? `${knockoutRounds.length} rundor` : "Ingen bracket ännu"}</p></div>
-                  {showSection("slutspel") ? <button className="button subtle" type="button" onClick={() => void postAction(`/api/tournaments/${id}/generate`, "Bracket skapad.")}>Generera</button> : null}
+                  {showSection("slutspel") ? <button className="button subtle" type="button" onClick={() => void regenerateStructure()}>Generera</button> : null}
                 </div>
                 {!knockoutRounds.length ? <p className="empty">Generera slutspel för att se bracket.</p> : null}
                 {knockoutRounds.length ? (
@@ -879,7 +890,7 @@ function TournamentView({
               {showSection("slutspel") ? (
                 <section className="panel quick-panel">
                   <h2>Slutspelsåtgärder</h2>
-                  <button className="button ghost" type="button" onClick={() => void postAction(`/api/tournaments/${id}/generate`, "Bracket skapad.")}>Bygg om bracket</button>
+                  <button className="button ghost" type="button" onClick={() => void regenerateStructure()}>Bygg om bracket</button>
                   <button className="button ghost" type="button" onClick={() => void postAction(`/api/tournaments/${id}/schedule`, "Schema uppdaterat.")}>Schemalägg slutspel</button>
                 </section>
               ) : null}
@@ -986,7 +997,7 @@ function TournamentView({
                 </section>
                 <section className="panel quick-panel">
                   <h2>Schemaåtgärder</h2>
-                  <button className="button ghost" type="button" onClick={() => void postAction(`/api/tournaments/${id}/generate`, "Bracket skapad.")}>Generera gruppspel och slutspel</button>
+                  <button className="button ghost" type="button" onClick={() => void regenerateStructure()}>Generera gruppspel och slutspel</button>
                   <button className="button ghost" type="button" onClick={() => void postAction(`/api/tournaments/${id}/schedule`, "Schema uppdaterat.")}>Autoschemalägg matcher</button>
                 </section>
               </aside>
@@ -1067,7 +1078,7 @@ function TournamentView({
               <aside className="side-stack">
                 <section className="panel quick-panel">
                   <h2>Turneringsåtgärder</h2>
-                  <button className="button ghost" type="button" onClick={() => void postAction(`/api/tournaments/${id}/generate`, "Bracket skapad.")}>Generera gruppspel och slutspel</button>
+                  <button className="button ghost" type="button" onClick={() => void regenerateStructure()}>Generera gruppspel och slutspel</button>
                   <button className="button ghost" type="button" onClick={() => void postAction(`/api/tournaments/${id}/schedule`, "Schema uppdaterat.")}>Autoschemalägg matcher</button>
                   <a className="button ghost" href="#moderatorer">Skapa moderatorlänk</a>
                 </section>
@@ -1141,7 +1152,7 @@ function TournamentView({
           <aside className="dashboard-side">
             <section className="panel quick-panel">
               <h2>Snabbåtgärder</h2>
-              <button className="button ghost" type="button" onClick={() => void postAction(`/api/tournaments/${id}/generate`, "Bracket skapad.")}>Generera gruppspel och slutspel</button>
+              <button className="button ghost" type="button" onClick={() => void regenerateStructure()}>Generera gruppspel och slutspel</button>
               <button className="button ghost" type="button" onClick={() => void postAction(`/api/tournaments/${id}/schedule`, "Schema uppdaterat.")}>Autoschemalägg matcher</button>
               <a className="button ghost" href="/admin/tv" onClick={(event) => { event.preventDefault(); onNavigate("/admin/tv"); }}>Hantera Live TV</a>
             </section>

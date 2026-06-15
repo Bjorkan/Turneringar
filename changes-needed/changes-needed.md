@@ -31,6 +31,9 @@ Jag ändrade `validate_manual_slot()` i `backend/turneringar/services.py` så de
 
 4. "Generera gruppspel och slutspel" raderar befintliga matcher, resultat och schema utan spärr, bekräftelse eller varning. Reproben hade `before_scores: ["7 - 3"]`; efter ny generate var `after_scores: []` och `after_scheduled: 0`. Det här är en datatapp-knapp maskerad som normal snabbåtgärd. Se `backend/turneringar/services.py:77-79`, `frontend/src/admin/AdminApp.tsx:837`, `frontend/src/admin/AdminApp.tsx:882`, `frontend/src/admin/AdminApp.tsx:989-990`, `frontend/src/admin/AdminApp.tsx:1069-1071`.
 
+Status: Löst
+Jag gjorde `services.generate_structure()` bekräftelsemedveten och låter den stoppa om turneringen redan har matcher men anropet saknar `confirm_reset`. API-rutten `/api/tournaments/{tournament_id}/generate` läser nu JSON-body och skickar vidare `confirm_reset`, så även direkta API-anrop skyddas. I admin-UI:t går alla generera-/bygg-om-knappar via samma `regenerateStructure()`-funktion som visar en bekräftelseruta när det redan finns matcher och skickar flaggan bara efter aktiv bekräftelse. Regressionstestet `backend/tests/test_api.py::test_regenerate_requires_confirmation_when_structure_exists` visar att ett resultat på `7 - 3` och befintligt schema ligger kvar när omgenerering görs utan bekräftelse.
+
 5. Vanlig felinmatning ger 500 Internal Server Error. Bekräftade repros: `group_count: "abc"`, participant `kind: "alien"`, resource `kind: "alien"` och manuell tid `scheduled_at: "not-a-date"` gav alla 500. `parse_int()` kastar rå `ValueError`, SQLite CHECK/FK-fel fångas inte, och `parse_local_datetime()` fångas inte i slotvalidering. Se `backend/turneringar/main.py:50-53`, `backend/turneringar/main.py:207-220`, `backend/turneringar/main.py:289-305`, `backend/turneringar/main.py:365-377`, `backend/turneringar/store.py:123-137`, `backend/turneringar/store.py:154-167`, `backend/turneringar/services.py:443`.
 
 ## High

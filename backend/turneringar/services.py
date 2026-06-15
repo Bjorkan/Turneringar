@@ -65,7 +65,11 @@ def distribute_participants(participants: list[dict], group_count: int) -> list[
     return groups
 
 
-def generate_structure(conn: sqlite3.Connection, tournament_id: int) -> None:
+def generate_structure(
+    conn: sqlite3.Connection,
+    tournament_id: int,
+    confirm_reset: bool = False,
+) -> None:
     tournament = store.get_tournament(conn, tournament_id)
     if not tournament:
         raise ValueError("Turneringen finns inte.")
@@ -73,6 +77,9 @@ def generate_structure(conn: sqlite3.Connection, tournament_id: int) -> None:
     participants = store.list_participants(conn, tournament_id)
     if len(participants) < 2:
         raise ValueError("Lägg till minst två deltagare innan bracket skapas.")
+
+    if store.list_matches(conn, tournament_id) and not confirm_reset:
+        raise ValueError("Bekräfta att befintliga matcher, resultat och schema ska ersättas.")
 
     with conn:
         conn.execute("DELETE FROM stages WHERE tournament_id = ?", (tournament_id,))

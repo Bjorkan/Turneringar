@@ -347,11 +347,16 @@ async def add_resource(request: Request, tournament_id: int) -> dict[str, Any]:
 
 
 @app.post("/api/tournaments/{tournament_id}/generate")
-def generate_structure(request: Request, tournament_id: int) -> dict[str, Any]:
+async def generate_structure(request: Request, tournament_id: int) -> dict[str, Any]:
     require_admin(request)
+    payload = await json_body(request)
     try:
         with session() as conn:
-            services.generate_structure(conn, tournament_id)
+            services.generate_structure(
+                conn,
+                tournament_id,
+                confirm_reset=bool(payload.get("confirm_reset")),
+            )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     publish(tournament_id, "structure_generated")

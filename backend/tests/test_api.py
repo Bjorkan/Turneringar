@@ -293,6 +293,31 @@ def test_full_admin_tv_and_moderator_flow(client: ApiClient) -> None:
     )
 
 
+def test_regenerate_requires_confirmation_when_structure_exists(client: ApiClient) -> None:
+    login(client)
+    tournament_id = create_ready_tournament(client)
+    dashboard = client.get(f"/api/tournaments/{tournament_id}").json()
+    group_match = next(match for match in dashboard["matches"] if match["stage_kind"] == "group")
+
+    response = client.post(
+        f"/api/tournaments/{tournament_id}/matches/{group_match['id']}/result",
+        json={"score_a": 7, "score_b": 3},
+    )
+    assert response.status_code == 200
+
+    response = client.post(f"/api/tournaments/{tournament_id}/generate", json={})
+    assert response.status_code == 400
+    assert "Bekräfta" in response.text
+
+    dashboard = client.get(f"/api/tournaments/{tournament_id}").json()
+    unchanged = next(match for match in dashboard["matches"] if match["id"] == group_match["id"])
+    assert unchanged["score_label"] == "7 - 3"
+    assert unchanged["scheduled_at"]
+
+    response = client.post(f"/api/tournaments/{tournament_id}/generate", json={"confirm_reset": True})
+    assert response.status_code == 200
+
+
 def test_static_frontends_are_served(client: ApiClient) -> None:
     assert client.get("/").status_code == 200
     assert client.get("/admin").status_code == 200
