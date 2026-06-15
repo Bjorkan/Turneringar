@@ -2199,10 +2199,20 @@ body.tv {
 
 @media (max-width: 900px) {
   .admin-shell {
-    display: block;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .admin-shell.menu-collapsed .sidebar {
+    display: none;
+  }
+
+  .workspace {
+    order: 1;
   }
 
   .sidebar {
+    order: 2;
     position: static;
     height: auto;
     border-right: 0;

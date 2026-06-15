@@ -151,3 +151,20 @@ test("moderatorvy och Live TV laddar från samma frontendbygge", async ({ page }
   await expect(page.locator(".tv-stage")).toContainText("Lag");
   await expect(page.locator(".tv-stage")).toContainText("3 - 0");
 });
+
+test("mobil adminvy börjar med toppbar och dold sidomeny", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await loginAsAdmin(page);
+
+  await expect(page.locator(".topbar")).toBeVisible();
+  await expect(page.locator(".sidebar")).toBeHidden();
+
+  await page.getByRole("button", { name: "Visa meny" }).click();
+  await expect(page.locator(".sidebar")).toBeVisible();
+  await expect(page.locator(".side-nav")).toContainText("Turneringar");
+
+  const topbarBox = await page.locator(".topbar").boundingBox();
+  const sidebarBox = await page.locator(".sidebar").boundingBox();
+  if (!topbarBox || !sidebarBox) throw new Error("Mobilnavigationens layout kunde inte mätas.");
+  expect(sidebarBox.y).toBeGreaterThanOrEqual(topbarBox.y + topbarBox.height - 1);
+});
