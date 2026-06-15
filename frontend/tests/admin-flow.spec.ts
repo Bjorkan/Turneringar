@@ -8,6 +8,8 @@ async function loginAsAdmin(page: Page) {
   await page.locator('input[name="pin"]').fill(adminPin);
   await page.getByRole("button", { name: "Logga in" }).click();
   await expect(page.getByRole("heading", { name: "Turneringar" })).toBeVisible();
+  await expect(page.getByPlaceholder("Sök turneringar, matcher, deltagare...")).toHaveCount(0);
+  await expect(page.getByLabel("Aktuell vy")).toContainText("Turneringar");
 }
 
 async function createTournament(page: Page) {

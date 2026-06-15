@@ -120,6 +120,9 @@ Jag importerade och använde den befintliga `resourceKindText()`-hjälparen i `f
 
 21. Toppbarens globala sökfält är en låtsaskontroll. Placeholdern säger "Sök turneringar, matcher, deltagare..." men Enter visar bara en notice om att fältet filtrerar listor. Det filtrerar ingenting globalt. Se `frontend/src/admin/AdminApp.tsx:238-250`.
 
+Status: Löst
+Jag tog bort det globala sökfältet från toppbaren i `frontend/src/admin/AdminApp.tsx` eftersom det signalerade kommandopalett/global sökning utan att ha den funktionen. I stället visar toppbaren en enkel `Aktuell vy`-etikett med namnet på den aktiva sektionen. De riktiga listfiltren inne i respektive vy finns kvar och påverkas inte av ändringen. Regressionen ligger i Playwrights `loginAsAdmin()`-helper, som nu verifierar att placeholdern `Sök turneringar, matcher, deltagare...` saknas och att toppbaren visar aktuell vy.
+
 22. Filterchips ser klickbara ut men är statiska `<span>`. Det gäller deltagarfilter, matchstatusfilter och moderatorfilter. Användaren kan inte filtrera på "Lag", "Seedade", "Pågår", "Kommande" osv. Se `frontend/src/admin/AdminApp.tsx:896-900`, `frontend/src/admin/AdminApp.tsx:999-1005`, `frontend/src/admin/AdminApp.tsx:1301-1306`.
 
 23. Admins översikts-/slutspelsvy visar bara första gruppens tabell. Vid flera grupper göms resten utan indikator. Se `frontend/src/admin/AdminApp.tsx:852-864`.

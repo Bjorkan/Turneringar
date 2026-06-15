@@ -338,6 +338,27 @@ kbd {
   outline: 0;
 }
 
+.topbar-context {
+  min-width: 0;
+}
+
+.topbar-context small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.topbar-context strong {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .top-actions {
   display: flex;
   justify-content: flex-end;

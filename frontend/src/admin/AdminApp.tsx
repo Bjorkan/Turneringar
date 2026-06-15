@@ -235,20 +235,10 @@ function AdminShell({
           >
             ☰
           </button>
-          <label className="global-search">
-            <span aria-hidden="true">⌕</span>
-            <input
-              type="search"
-              placeholder="Sök turneringar, matcher, deltagare..."
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  onNotice("Sökfältet filtrerar listor i respektive vy.");
-                }
-              }}
-            />
-            <kbd>⌘ K</kbd>
-          </label>
+          <div className="topbar-context" aria-label="Aktuell vy">
+            <small>Vy</small>
+            <strong>{active}</strong>
+          </div>
           <div className="top-actions">
             <div className="user-chip" aria-label="Inloggad användare">
               <span>AD</span>
