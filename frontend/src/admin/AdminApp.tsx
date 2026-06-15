@@ -46,6 +46,10 @@ type RoundGroup = {
   matches: Match[];
 };
 
+type ParticipantFilter = "all" | "team" | "player" | "seeded";
+type MatchFilter = "all" | "live" | "upcoming" | "done" | "unplaced";
+type ModeratorMatchFilter = "all" | "live" | "upcoming";
+
 const navItems: NavItem[] = [
   { label: "Turneringar", glyph: "T" },
   { label: "Live TV", glyph: "TV" },
@@ -616,6 +620,8 @@ function TournamentView({
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [scoreDialog, setScoreDialog] = useState<Match | null>(null);
+  const [participantFilter, setParticipantFilter] = useState<ParticipantFilter>("all");
+  const [matchFilter, setMatchFilter] = useState<MatchFilter>("all");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -655,8 +661,8 @@ function TournamentView({
   const events = data?.events || [];
   const statusCounts = {
     all: matches.length,
-    live: currentMatches.length,
-    upcoming: upcomingMatches.length,
+    live: matches.filter((match) => match.status === "in_progress").length,
+    upcoming: matches.filter((match) => match.status !== "completed" && match.status !== "in_progress").length,
     done: completedMatches.length,
     unplaced: matches.filter((match) => !match.resource_id || !match.scheduled_at).length,
   };
@@ -673,7 +679,20 @@ function TournamentView({
     [participants],
   );
   const seededCount = participants.filter((participant) => participant.seed).length;
-  const selectedParticipant = seededParticipants[0] || null;
+  const filteredParticipants = seededParticipants.filter((participant) => {
+    if (participantFilter === "team") return participant.kind !== "player";
+    if (participantFilter === "player") return participant.kind === "player";
+    if (participantFilter === "seeded") return Boolean(participant.seed);
+    return true;
+  });
+  const filteredMatches = sortedMatches.filter((match) => {
+    if (matchFilter === "live") return match.status === "in_progress";
+    if (matchFilter === "upcoming") return match.status !== "completed" && match.status !== "in_progress";
+    if (matchFilter === "done") return match.status === "completed";
+    if (matchFilter === "unplaced") return !match.resource_id || !match.scheduled_at;
+    return true;
+  });
+  const selectedParticipant = filteredParticipants[0] || null;
   const resourcesWithMatches = resources.map((resource) => ({
     ...resource,
     matches: sortedMatches.filter((match) => match.resource_id === resource.id).slice(0, 5),
@@ -899,10 +918,10 @@ function TournamentView({
                   <span className="count-pill">{participants.length}</span>
                 </div>
                 <div className="filter-row">
-                  <span className="filter-chip active">Alla <strong>{participants.length}</strong></span>
-                  <span className="filter-chip">Lag <strong>{participantBreakdown.teams}</strong></span>
-                  <span className="filter-chip">Spelare <strong>{participantBreakdown.players}</strong></span>
-                  <span className="filter-chip">Seedade <strong>{seededCount}</strong></span>
+                  <button type="button" className={`filter-chip ${participantFilter === "all" ? "active" : ""}`} aria-pressed={participantFilter === "all"} onClick={() => setParticipantFilter("all")}>Alla <strong>{participants.length}</strong></button>
+                  <button type="button" className={`filter-chip ${participantFilter === "team" ? "active" : ""}`} aria-pressed={participantFilter === "team"} onClick={() => setParticipantFilter("team")}>Lag <strong>{participantBreakdown.teams}</strong></button>
+                  <button type="button" className={`filter-chip ${participantFilter === "player" ? "active" : ""}`} aria-pressed={participantFilter === "player"} onClick={() => setParticipantFilter("player")}>Spelare <strong>{participantBreakdown.players}</strong></button>
+                  <button type="button" className={`filter-chip ${participantFilter === "seeded" ? "active" : ""}`} aria-pressed={participantFilter === "seeded"} onClick={() => setParticipantFilter("seeded")}>Seedade <strong>{seededCount}</strong></button>
                 </div>
                 <form className="inline-form action-form" onSubmit={(event) => { event.preventDefault(); void submitForm(`/api/tournaments/${id}/participants`, "POST", event.currentTarget, "Deltagare tillagd."); }}>
                   <input name="name" required placeholder="Lag eller spelare" />
@@ -913,8 +932,8 @@ function TournamentView({
                 <table className="admin-table compact-table participant-table">
                   <thead><tr><th>Seed</th><th>Namn</th><th>Typ</th><th>Status</th></tr></thead>
                   <tbody>
-                    {!seededParticipants.length ? <tr><td colSpan={4}>Inga deltagare.</td></tr> : null}
-                    {seededParticipants.map((participant) => (
+                    {!filteredParticipants.length ? <tr><td colSpan={4}>Inga deltagare matchar filtret.</td></tr> : null}
+                    {filteredParticipants.map((participant) => (
                       <tr key={participant.id}>
                         <td>{participant.seed || "-"}</td>
                         <td><span className="avatar-chip">{initials(participant.name)}</span><strong>{participant.name}</strong></td>
@@ -1002,17 +1021,17 @@ function TournamentView({
             <section className="panel" id="alla-matcher">
               <div className="panel-head"><h2>Alla matcher</h2><span className="count-pill">{matches.length}</span></div>
               <div className="filter-row match-status-row">
-                <span className="filter-chip active">Alla <strong>{statusCounts.all}</strong></span>
-                <span className="filter-chip">Pågår <strong>{statusCounts.live}</strong></span>
-                <span className="filter-chip">Kommande <strong>{statusCounts.upcoming}</strong></span>
-                <span className="filter-chip">Avslutade <strong>{statusCounts.done}</strong></span>
-                <span className="filter-chip">Ej placerade <strong>{statusCounts.unplaced}</strong></span>
+                <button type="button" className={`filter-chip ${matchFilter === "all" ? "active" : ""}`} aria-pressed={matchFilter === "all"} onClick={() => setMatchFilter("all")}>Alla <strong>{statusCounts.all}</strong></button>
+                <button type="button" className={`filter-chip ${matchFilter === "live" ? "active" : ""}`} aria-pressed={matchFilter === "live"} onClick={() => setMatchFilter("live")}>Pågår <strong>{statusCounts.live}</strong></button>
+                <button type="button" className={`filter-chip ${matchFilter === "upcoming" ? "active" : ""}`} aria-pressed={matchFilter === "upcoming"} onClick={() => setMatchFilter("upcoming")}>Kommande <strong>{statusCounts.upcoming}</strong></button>
+                <button type="button" className={`filter-chip ${matchFilter === "done" ? "active" : ""}`} aria-pressed={matchFilter === "done"} onClick={() => setMatchFilter("done")}>Avslutade <strong>{statusCounts.done}</strong></button>
+                <button type="button" className={`filter-chip ${matchFilter === "unplaced" ? "active" : ""}`} aria-pressed={matchFilter === "unplaced"} onClick={() => setMatchFilter("unplaced")}>Ej placerade <strong>{statusCounts.unplaced}</strong></button>
               </div>
               <table className="matches admin-table">
                 <thead><tr><th>Match</th><th>Deltagare</th><th>Tid och plats</th><th>Status</th><th>Resultat</th><th>Åtgärder</th></tr></thead>
                 <tbody>
-                  {!sortedMatches.length ? <tr><td colSpan={6}>Inga matcher ännu.</td></tr> : null}
-                  {sortedMatches.map((match) => (
+                  {!filteredMatches.length ? <tr><td colSpan={6}>Inga matcher matchar filtret.</td></tr> : null}
+                  {filteredMatches.map((match) => (
                     <tr key={match.id}>
                       <td><strong>{match.name}</strong><small>{match.stage_name}{match.group_name ? ` · ${match.group_name}` : ""}</small></td>
                       <td><strong>{match.side_a}</strong><span className="vs">vs</span><strong>{match.side_b}</strong></td>
@@ -1216,6 +1235,7 @@ function ModeratorView({
   onClear: () => void;
 }) {
   const [data, setData] = useState<ModeratorPayload | null>(null);
+  const [moderatorFilter, setModeratorFilter] = useState<ModeratorMatchFilter>("all");
 
   const load = useCallback(async () => {
     try {
@@ -1244,6 +1264,11 @@ function ModeratorView({
     live: moderatorMatches.filter((match) => match.status === "in_progress").length,
     upcoming: moderatorMatches.filter((match) => match.status !== "in_progress").length,
   };
+  const filteredModeratorMatches = moderatorMatches.filter((match) => {
+    if (moderatorFilter === "live") return match.status === "in_progress";
+    if (moderatorFilter === "upcoming") return match.status !== "in_progress";
+    return true;
+  });
 
   const login = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1305,12 +1330,12 @@ function ModeratorView({
 
               <section className="moderator-main">
                 <div className="filter-row">
-                  <span className="filter-chip active">Alla matcher <strong>{moderatorCounts.all}</strong></span>
-                  <span className="filter-chip">Pågår <strong>{moderatorCounts.live}</strong></span>
-                  <span className="filter-chip">Kommande <strong>{moderatorCounts.upcoming}</strong></span>
+                  <button type="button" className={`filter-chip ${moderatorFilter === "all" ? "active" : ""}`} aria-pressed={moderatorFilter === "all"} onClick={() => setModeratorFilter("all")}>Alla matcher <strong>{moderatorCounts.all}</strong></button>
+                  <button type="button" className={`filter-chip ${moderatorFilter === "live" ? "active" : ""}`} aria-pressed={moderatorFilter === "live"} onClick={() => setModeratorFilter("live")}>Pågår <strong>{moderatorCounts.live}</strong></button>
+                  <button type="button" className={`filter-chip ${moderatorFilter === "upcoming" ? "active" : ""}`} aria-pressed={moderatorFilter === "upcoming"} onClick={() => setModeratorFilter("upcoming")}>Kommande <strong>{moderatorCounts.upcoming}</strong></button>
                 </div>
-                {!moderatorMatches.length ? <p className="panel empty">Inga öppna matcher i ditt scope.</p> : null}
-                {moderatorMatches.map((match, index) => (
+                {!filteredModeratorMatches.length ? <p className="panel empty">Inga matcher matchar filtret.</p> : null}
+                {filteredModeratorMatches.map((match, index) => (
                   <article key={match.id} className={`panel moderator-match-card ${index === 0 ? "expanded" : ""}`}>
                     <header>
                       <div><strong>{match.time_label}</strong><small>{match.resource_name || "-"}</small></div>

@@ -125,6 +125,9 @@ Jag tog bort det globala sökfältet från toppbaren i `frontend/src/admin/Admin
 
 22. Filterchips ser klickbara ut men är statiska `<span>`. Det gäller deltagarfilter, matchstatusfilter och moderatorfilter. Användaren kan inte filtrera på "Lag", "Seedade", "Pågår", "Kommande" osv. Se `frontend/src/admin/AdminApp.tsx:896-900`, `frontend/src/admin/AdminApp.tsx:999-1005`, `frontend/src/admin/AdminApp.tsx:1301-1306`.
 
+Status: Löst
+Jag gjorde filterchipsen i `frontend/src/admin/AdminApp.tsx` till riktiga `button`-kontroller med `aria-pressed` och separat state för deltagarfilter, matchfilter och moderatorfilter. Deltagartabellen renderar nu filtrerade deltagare för alla, lag, spelare och seedade, medan matchtabellen filtrerar på alla, pågår, kommande, avslutade och ej placerade. Moderatorvyn filtrerar sin matchlista på alla, pågår och kommande utan att ändra backendpayloaden. Regressionerna ligger i Docker/Chromium-flödena för admin och moderator, där matchfilter och moderatorfilter klickas och verifieras.
+
 23. Admins översikts-/slutspelsvy visar bara första gruppens tabell. Vid flera grupper göms resten utan indikator. Se `frontend/src/admin/AdminApp.tsx:852-864`.
 
 24. Schemavyn visar bara fem matcher per resurs och sex ej placerade matcher i sidopanelen. Resten försvinner från just den vyn utan "visa fler". Se `frontend/src/admin/AdminApp.tsx:687-691`, `frontend/src/admin/AdminApp.tsx:954-965`, `frontend/src/admin/AdminApp.tsx:980-985`.

@@ -91,6 +91,9 @@ test("admin kan klicka igenom huvudflödet, liveuppdatera och avsluta match", as
   await expect(page.getByRole("status")).toContainText("Livepoäng sparad.");
   await expect(row).toContainText("Pågår");
   await expect(row).toContainText("2 - 1");
+  await page.getByRole("button", { name: /Pågår/ }).click();
+  await expect(page.locator("#alla-matcher tbody")).toContainText("2 - 1");
+  await page.getByRole("button", { name: /Alla/ }).click();
 
   await row.getByRole("button", { name: "Poäng" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Avsluta match" }).click();
@@ -100,6 +103,8 @@ test("admin kan klicka igenom huvudflödet, liveuppdatera och avsluta match", as
   await expect(row).toContainText("2 - 1");
   await expect(row).toContainText("Låst");
   await expect(row.getByRole("button", { name: "Poäng" })).toHaveCount(0);
+  await page.getByRole("button", { name: /Avslutade/ }).click();
+  await expect(page.locator("#alla-matcher tbody")).toContainText("Låst");
 });
 
 test("moderatorvy och Live TV laddar från samma frontendbygge", async ({ page }) => {
@@ -132,6 +137,9 @@ test("moderatorvy och Live TV laddar från samma frontendbygge", async ({ page }
   await resultForm.locator('input[name="score_b"]').fill("0");
   await resultForm.getByRole("button", { name: "Spara livepoäng" }).click();
   await expect(page.getByRole("status")).toContainText("Livepoäng sparad.");
+  await page.getByRole("button", { name: /Pågår/ }).click();
+  await expect(page.locator(".moderator-match-card")).toHaveCount(1);
+  await expect(page.locator(".moderator-match-card").first()).toContainText("Pågår");
 
   const tvCode = `TV${Date.now().toString().slice(-8)}`;
   await page.goto("/admin/tv");

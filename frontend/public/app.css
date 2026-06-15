@@ -867,6 +867,18 @@ kbd {
   font-weight: 750;
 }
 
+button.filter-chip {
+  cursor: pointer;
+  font: inherit;
+}
+
+button.filter-chip:hover,
+button.filter-chip:focus-visible {
+  border-color: #bfdbfe;
+  background: #f5f9ff;
+  color: var(--blue);
+}
+
 .filter-chip.active {
   border-color: #bfdbfe;
   background: #eef4ff;
