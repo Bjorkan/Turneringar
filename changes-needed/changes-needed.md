@@ -150,6 +150,9 @@ Jag behöll statuschipsen som riktiga knappar och lade till ett `moderatorQuery`
 
 27. All-scope moderatorer kan se och rapportera spelbara men oschemalagda matcher. Backend filtrerar bara på `match_is_playable` och `status != completed`, inte på schemalagd/resurs/current. Det gör det lätt att rapportera fel match. Se `backend/turneringar/main.py:444-453`, `backend/turneringar/services.py:756-765`.
 
+Status: Löst
+Jag skärpte `services.moderator_can_update_match()` så en moderator bara får uppdatera matcher som har deltagare, `scheduled_at` och `resource_id`. Samma funktion används av både moderatorlistningen och score/result-endpointsen, så all-scope moderatorer kan inte längre kringgå UI:t genom att posta direkt mot en oschemalagd match. Den befintliga resursscope-regeln ligger kvar efter den nya schemakontrollen, vilket gör att planspecifika moderatorer fortfarande bara får sina egna schemalagda matcher. Regressionstestet `backend/tests/test_api.py::test_moderators_cannot_update_unscheduled_matches` verifierar att en spelbar men oschemalagd match inte visas i sessionen, att direkt score-post ger `403` och att resultatet inte ändras.
+
 28. Admin-PIN och moderator-PIN lagras direkt i cookies. De är HttpOnly men råhemligheten blir sessionsbeviset. Byt till signerad session/token med rotation och lagra aldrig PIN som cookievärde. Se `backend/turneringar/main.py:20`, `backend/turneringar/main.py:33`, `backend/turneringar/main.py:188`, `backend/turneringar/main.py:467`.
 
 29. Ingen bruteforce-skydd eller rate limit på admin- och moderator-PIN. En lokal app kan fortfarande ligga på ett LAN. Se `backend/turneringar/main.py:183-189`, `backend/turneringar/main.py:459-468`.

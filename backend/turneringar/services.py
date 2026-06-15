@@ -841,6 +841,8 @@ def moderator_can_update_match(
     match = store.get_match(conn, match_id)
     if not match or match["tournament_id"] != moderator_token["tournament_id"]:
         return False
+    if not match_is_playable(match) or not match["scheduled_at"] or not match["resource_id"]:
+        return False
     resource_id = moderator_token.get("resource_id")
     return resource_id is None or match["resource_id"] == resource_id
 

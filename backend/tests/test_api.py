@@ -293,6 +293,64 @@ def test_full_admin_tv_and_moderator_flow(client: ApiClient) -> None:
     )
 
 
+def test_moderators_cannot_update_unscheduled_matches(client: ApiClient) -> None:
+    login(client)
+    response = client.post(
+        "/api/tournaments",
+        json={
+            "name": "Oplacerad Cup",
+            "starts_at": "2026-06-13T09:00",
+            "group_count": 2,
+            "qualifiers_per_group": 1,
+        },
+    )
+    assert response.status_code == 200
+    tournament_id = response.json()["id"]
+
+    for seed, name in enumerate(["Lag A", "Lag B", "Lag C", "Lag D"], start=1):
+        response = client.post(
+            f"/api/tournaments/{tournament_id}/participants",
+            json={"name": name, "kind": "team", "seed": seed},
+        )
+        assert response.status_code == 200
+
+    response = client.post(f"/api/tournaments/{tournament_id}/generate", json={})
+    assert response.status_code == 200
+    dashboard = client.get(f"/api/tournaments/{tournament_id}").json()
+    unscheduled_match = next(
+        match
+        for match in dashboard["matches"]
+        if match["stage_kind"] == "group" and not match["scheduled_at"]
+    )
+
+    response = client.post(
+        f"/api/tournaments/{tournament_id}/moderators",
+        json={"label": "Alla matcher"},
+    )
+    assert response.status_code == 200
+    moderator = response.json()["moderator"]
+
+    response = client.post(
+        f"/api/moderators/{moderator['token']}/login",
+        json={"pin": moderator["pin"]},
+    )
+    assert response.status_code == 200
+
+    moderator_session = client.get(f"/api/moderators/{moderator['token']}")
+    assert moderator_session.status_code == 200
+    assert moderator_session.json()["matches"] == []
+
+    response = client.post(
+        f"/api/moderators/{moderator['token']}/matches/{unscheduled_match['id']}/score",
+        json={"score_a": 1, "score_b": 0},
+    )
+    assert response.status_code == 403
+
+    dashboard = client.get(f"/api/tournaments/{tournament_id}").json()
+    unchanged = next(match for match in dashboard["matches"] if match["id"] == unscheduled_match["id"])
+    assert unchanged["score_label"] == "-"
+
+
 def test_regenerate_requires_confirmation_when_structure_exists(client: ApiClient) -> None:
     login(client)
     tournament_id = create_ready_tournament(client)
