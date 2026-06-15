@@ -355,6 +355,37 @@ def test_common_invalid_inputs_return_400(client: ApiClient) -> None:
     assert "giltigt datum" in response.text
 
 
+def test_tournament_structure_values_are_limited(client: ApiClient) -> None:
+    login(client)
+
+    response = client.post("/api/tournaments", json={"name": "Minusgrupper", "group_count": -2})
+    assert response.status_code == 400
+    assert "minst 1" in response.text
+
+    response = client.post(
+        "/api/tournaments",
+        json={"name": "Absurt många vidare", "qualifiers_per_group": 999},
+    )
+    assert response.status_code == 400
+    assert "högst" in response.text
+
+    response = client.post("/api/tournaments", json={"name": "Rimlig cup", "group_count": 2})
+    assert response.status_code == 200
+    tournament_id = response.json()["id"]
+
+    response = client.patch(
+        f"/api/tournaments/{tournament_id}/settings",
+        json={
+            "starts_at": "2026-06-13T09:00",
+            "match_minutes": 20,
+            "break_minutes": 5,
+            "group_count": 999,
+            "qualifiers_per_group": 1,
+        },
+    )
+    assert response.status_code == 400
+
+
 def test_static_frontends_are_served(client: ApiClient) -> None:
     assert client.get("/").status_code == 200
     assert client.get("/admin").status_code == 200

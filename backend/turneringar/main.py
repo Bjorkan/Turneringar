@@ -21,6 +21,8 @@ ADMIN_COOKIE = "turneringar_admin_pin"
 ADMIN_PIN = os.environ.get("ADMIN_PIN", "admin123")
 PARTICIPANT_KINDS = {"team", "player"}
 RESOURCE_KINDS = {"court", "server", "table"}
+MAX_GROUP_COUNT = 64
+MAX_QUALIFIERS_PER_GROUP = 64
 
 app = FastAPI(title="Turneringar API")
 app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIR / "static")), name="assets")
@@ -59,6 +61,21 @@ def parse_int(value: Any, default: int | None = None) -> int | None:
         return int(value)
     except (TypeError, ValueError) as exc:
         raise HTTPException(status_code=400, detail="Värdet måste vara ett heltal.") from exc
+
+
+def parse_limited_int(
+    payload: dict[str, Any],
+    key: str,
+    label: str,
+    default: int,
+    maximum: int,
+) -> int:
+    value = parse_int(payload.get(key), default) or default
+    if value < 1:
+        raise HTTPException(status_code=400, detail=f"{label} måste vara minst 1.")
+    if value > maximum:
+        raise HTTPException(status_code=400, detail=f"{label} får vara högst {maximum}.")
+    return value
 
 
 def require_text(payload: dict[str, Any], key: str, label: str) -> str:
@@ -230,8 +247,14 @@ async def create_tournament(request: Request) -> dict[str, Any]:
                 conn,
                 name,
                 starts_at=payload.get("starts_at") or None,
-                group_count=parse_int(payload.get("group_count"), 2) or 2,
-                qualifiers_per_group=parse_int(payload.get("qualifiers_per_group"), 2) or 2,
+                group_count=parse_limited_int(payload, "group_count", "Grupper", 2, MAX_GROUP_COUNT),
+                qualifiers_per_group=parse_limited_int(
+                    payload,
+                    "qualifiers_per_group",
+                    "Vidare/grupp",
+                    2,
+                    MAX_QUALIFIERS_PER_GROUP,
+                ),
             )
     return {"id": tournament_id}
 
@@ -314,8 +337,14 @@ async def update_settings(request: Request, tournament_id: int) -> dict[str, Any
                 str(payload.get("starts_at") or store.default_start_time()),
                 parse_int(payload.get("match_minutes"), 20) or 20,
                 parse_int(payload.get("break_minutes"), 5) or 5,
-                parse_int(payload.get("group_count"), 2) or 2,
-                parse_int(payload.get("qualifiers_per_group"), 2) or 2,
+                parse_limited_int(payload, "group_count", "Grupper", 2, MAX_GROUP_COUNT),
+                parse_limited_int(
+                    payload,
+                    "qualifiers_per_group",
+                    "Vidare/grupp",
+                    2,
+                    MAX_QUALIFIERS_PER_GROUP,
+                ),
             )
             store.add_event(conn, tournament_id, "settings_updated", {"tournament_id": tournament_id})
     publish(tournament_id, "settings_updated")

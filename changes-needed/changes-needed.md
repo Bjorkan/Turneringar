@@ -73,6 +73,9 @@ Jag flyttade gruppfördelningen i `generate_structure()` så den sker före någ
 
 12. Skapande av turnering accepterar negativa eller absurda strukturvärden. `create_tournament()` skickar `group_count` och `qualifiers_per_group` rakt till databasen, till skillnad från `update_tournament_settings()` som klampar värden. UI har `min`, men API:t är öppet för skräp. Se `backend/turneringar/main.py:217-219`, `backend/turneringar/store.py:40-64`, `backend/turneringar/store.py:100-118`.
 
+Status: Löst
+Jag lade till `parse_limited_int()` i `backend/turneringar/main.py` för strukturvärden som måste vara minst 1 och högst en definierad maxgräns. Skapande av turnering använder nu den valideringen för både `group_count` och `qualifiers_per_group`, så negativa och extrema värden stoppas innan databasen skrivs. Inställningsuppdateringen använder samma validering, vilket gör att create- och settings-vägarna inte längre har olika tolerans för skräpvärden. Regressionstestet `backend/tests/test_api.py::test_tournament_structure_values_are_limited` verifierar negativa grupper, absurda vidarevärden och en settings-uppdatering över maxgränsen.
+
 13. Ogiltiga datum kan lagras och krascha senare schemaläggning. `starts_at` tas emot som valfri sträng och `schedule_matches()` kör `datetime.fromisoformat()` utan felöversättning. Se `backend/turneringar/main.py:217`, `backend/turneringar/main.py:298`, `backend/turneringar/services.py:25`, `backend/turneringar/services.py:347`.
 
 14. Moderator-scope valideras inte mot turneringen. `create_moderator_token()` accepterar vilket `resource_id` som helst som finns i databasen; en resurs från en annan turnering ger en moderator med dött eller felaktigt scope. Saknas resurs blir det FK/500 i stället för 400. Se `backend/turneringar/main.py:422-435`, `backend/turneringar/store.py:338-353`.
