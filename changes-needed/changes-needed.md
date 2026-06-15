@@ -113,6 +113,9 @@ Jag ändrade `build_knockout_stage()` så den sparar föregående rundas publika
 
 20. Live TV visar resource kind på engelska/rådatabasvärde (`COURT`, `SERVER`) i stället för svensk label (`Spelplan`, `Server`, `Bord`). Screenshot: `.tmp/review-screens/tv-public-slide3-1920.png`. Se `frontend/src/tv/TvApp.tsx:278-279`.
 
+Status: Löst
+Jag importerade och använde den befintliga `resourceKindText()`-hjälparen i `frontend/src/tv/TvApp.tsx`. TV-resurskort visar nu `Spelplan`, `Server` eller `Bord` i stället för rådatabasvärdet. Ändringen återanvänder samma formattering som admin redan använder, så etiketter hålls konsekventa mellan vyerna. Regressionen ligger i Docker/Chromium-testen `moderatorvy och Live TV laddar från samma frontendbygge`, som nu verifierar att publik-TV innehåller `Spelplan` och inte `court`.
+
 ## Medium
 
 21. Toppbarens globala sökfält är en låtsaskontroll. Placeholdern säger "Sök turneringar, matcher, deltagare..." men Enter visar bara en notice om att fältet filtrerar listor. Det filtrerar ingenting globalt. Se `frontend/src/admin/AdminApp.tsx:238-250`.

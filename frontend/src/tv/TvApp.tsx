@@ -4,6 +4,7 @@ import {
   formatClock,
   formatDate,
   initials,
+  resourceKindText,
   sortBySchedule,
   statusText,
 } from "../shared/format";
@@ -277,7 +278,7 @@ export function TvApp() {
               <div className="tv-resource-grid">
                 {!visibleResources.length ? <p className="tv-empty">Inga resurser publicerade.</p> : null}
                 {visibleResources.map((resource) => (
-                  <article key={resource.id}><strong>{resource.name}</strong><span>{resource.kind}</span></article>
+                  <article key={resource.id}><strong>{resource.name}</strong><span>{resourceKindText(resource.kind)}</span></article>
                 ))}
                 {hiddenResourceCount ? <p className="tv-more">{moreText(hiddenResourceCount, "plats", "platser")}</p> : null}
               </div>

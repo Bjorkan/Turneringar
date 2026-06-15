@@ -152,6 +152,8 @@ test("moderatorvy och Live TV laddar från samma frontendbygge", async ({ page }
   await expect(page.getByText(tournamentName)).toBeVisible();
   await expect(page.locator(".tv-stage")).toContainText("Lag");
   await expect(page.locator(".tv-stage")).toContainText("3 - 0");
+  await expect(page.locator(".tv-stage")).toContainText("Spelplan");
+  await expect(page.locator(".tv-stage")).not.toContainText("court");
   await expect(page.locator(".tv-stage")).not.toContainText("Senaste aktivitet");
 });
 
