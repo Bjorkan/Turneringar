@@ -366,3 +366,35 @@ test("Live TV behåller aktiv slide vid SSE-refresh", async ({ page }) => {
   await page.waitForTimeout(1_500);
   await expect(page.locator(".tv-meta-block").filter({ hasText: "Sida 2 av 3" })).toBeVisible();
 });
+
+test("admin visar alla grupptabeller i slutspelsvyn", async ({ page }) => {
+  await loginAsAdmin(page);
+
+  const tournamentName = `Three Groups ${Date.now()}`;
+  let response = await page.request.post("/api/tournaments", {
+    data: {
+      name: tournamentName,
+      starts_at: "2026-12-14T10:00",
+      group_count: 3,
+      qualifiers_per_group: 1,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+  const tournament = await response.json() as { id: number };
+
+  for (let index = 1; index <= 6; index += 1) {
+    response = await page.request.post(`/api/tournaments/${tournament.id}/participants`, {
+      data: { name: `Lag ${index}`, kind: "team", seed: index },
+    });
+    expect(response.ok()).toBeTruthy();
+  }
+
+  response = await page.request.post(`/api/tournaments/${tournament.id}/generate`, { data: {} });
+  expect(response.ok()).toBeTruthy();
+
+  await page.goto(`/tournaments/${tournament.id}#slutspel`);
+  await expect(page.getByRole("heading", { name: tournamentName })).toBeVisible();
+  await expect(page.locator("#tabeller")).toContainText("Grupp A");
+  await expect(page.locator("#tabeller")).toContainText("Grupp B");
+  await expect(page.locator("#tabeller")).toContainText("Grupp C");
+});

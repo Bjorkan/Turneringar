@@ -130,6 +130,9 @@ Jag gjorde filterchipsen i `frontend/src/admin/AdminApp.tsx` till riktiga `butto
 
 23. Admins översikts-/slutspelsvy visar bara första gruppens tabell. Vid flera grupper göms resten utan indikator. Se `frontend/src/admin/AdminApp.tsx:852-864`.
 
+Status: Löst
+Jag ändrade tabellpanelen i `frontend/src/admin/AdminApp.tsx` så den renderar alla entries i `standings` i stället för bara `standings[0]`. Panelrubriken visar nu ett antal och varje grupp får en egen tabell med gruppnamn. `frontend/public/app.css` har fått en `standings-grid` som låter flera tabeller ligga responsivt och skrolla horisontellt inom sin egen yta vid behov. Regressionstestet `frontend/tests/admin-flow.spec.ts::admin visar alla grupptabeller i slutspelsvyn` skapar tre grupper och verifierar i Docker/Chromium att Grupp A, Grupp B och Grupp C syns.
+
 24. Schemavyn visar bara fem matcher per resurs och sex ej placerade matcher i sidopanelen. Resten försvinner från just den vyn utan "visa fler". Se `frontend/src/admin/AdminApp.tsx:687-691`, `frontend/src/admin/AdminApp.tsx:954-965`, `frontend/src/admin/AdminApp.tsx:980-985`.
 
 25. Invalid moderatorlänk fastnar i "Laddar moderatorvy..." plus notice. `ModeratorView` har inget eget error state och renderar laddning för evigt när `/api/moderators/{token}` ger 404. Se `frontend/src/admin/AdminApp.tsx:1214-1221`, `frontend/src/admin/AdminApp.tsx:1274-1278`.

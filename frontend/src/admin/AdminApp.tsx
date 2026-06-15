@@ -873,18 +873,25 @@ function TournamentView({
                 ) : null}
               </section>
 
-              <section className="panel" id="tabeller">
-                <div className="panel-head"><h2>{standings[0] ? standings[0].group.name : "Tabell"}</h2></div>
-                {!standings[0] ? <p className="empty">Generera gruppspel för att se tabeller.</p> : null}
-                {standings[0] ? (
-                  <table className="admin-table compact-table">
-                    <thead><tr><th>#</th><th>Lag</th><th>S</th><th>V</th><th>O</th><th>F</th><th>GM</th><th>IM</th><th>P</th></tr></thead>
-                    <tbody>
-                      {standings[0].rows.map((row) => (
-                        <tr key={row.participant_id}><td>{row.rank}</td><td><strong>{row.name}</strong></td><td>{row.played}</td><td>{row.wins}</td><td>{row.draws}</td><td>{row.losses}</td><td>{row.scored}</td><td>{row.conceded}</td><td><strong>{row.points}</strong></td></tr>
-                      ))}
-                    </tbody>
-                  </table>
+              <section className="panel standings-panel" id="tabeller">
+                <div className="panel-head"><h2>Tabeller</h2><span className="count-pill">{standings.length}</span></div>
+                {!standings.length ? <p className="empty">Generera gruppspel för att se tabeller.</p> : null}
+                {standings.length ? (
+                  <div className="standings-grid">
+                    {standings.map((standing) => (
+                      <article key={standing.group.id}>
+                        <h3>{standing.group.name}</h3>
+                        <table className="admin-table compact-table">
+                          <thead><tr><th>#</th><th>Lag</th><th>S</th><th>V</th><th>O</th><th>F</th><th>GM</th><th>IM</th><th>P</th></tr></thead>
+                          <tbody>
+                            {standing.rows.map((row) => (
+                              <tr key={row.participant_id}><td>{row.rank}</td><td><strong>{row.name}</strong></td><td>{row.played}</td><td>{row.wins}</td><td>{row.draws}</td><td>{row.losses}</td><td>{row.scored}</td><td>{row.conceded}</td><td><strong>{row.points}</strong></td></tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </article>
+                    ))}
+                  </div>
                 ) : null}
               </section>
 
