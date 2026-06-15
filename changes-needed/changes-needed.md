@@ -53,6 +53,9 @@ Jag gjorde featurepanelen i `frontend/public/app.css` till en intern grid med ru
 
 8. Live TV tappar data utan indikator. Den visar bara 5 kommande matcher, 8 schemarader, 2 grupper, 4 rader per tabell, 4 resurser och 5 senaste resultat/event. Det finns ingen "... och fler"-markering, pagination eller extra slide. I en turnering med tre grupper visades Grupp C inte i tabellsliden. Se `frontend/src/tv/TvApp.tsx:117-123`, `frontend/src/tv/TvApp.tsx:207-214`, `frontend/src/tv/TvApp.tsx:258-279`.
 
+Status: Löst
+Jag lade till beräkningar i `frontend/src/tv/TvApp.tsx` som jämför hela payloadens listor med de poster som faktiskt renderas på varje TV-slide. När något trunkeras visas nu en `tv-more`-rad för kommande matcher, schema, grupper, dolda tabellrader, resurser, senaste resultat och eventlistan. `frontend/public/app.css` har fått en diskret TV-statusstil för de raderna så de läses som fortsättningsindikatorer i stället för vanlig tabelltext. Regressionstestet `frontend/tests/admin-flow.spec.ts::Live TV visar när listor fortsätter utanför sliden` skapar många matcher, tre grupper, fem resurser och fem lag per grupp och verifierar i Docker/Chromium att indikatorerna visas.
+
 9. Slutspelsseeding kan para ihop lag från samma grupp direkt i första slutspelsrundan trots att det går att undvika. Repro med 3 grupper och 2 vidare gav `Grupp C #1 vs Grupp C #2`. Se `backend/turneringar/services.py:134-144`, `backend/turneringar/services.py:185-213`.
 
 10. Grupper med en deltagare seedas inte automatiskt till slutspel. Repro med 3 deltagare, 3 grupper, 1 vidare/grupp gav knockoutmatcher som fortfarande stod `Grupp A #1 vs BYE` och status `pending`. `seed_knockout_from_groups()` körs bara efter resultatuppdatering, men i enpersonersgrupper finns inga gruppmatcher att rapportera. Se `backend/turneringar/services.py:68-150`, `backend/turneringar/services.py:649-692`.

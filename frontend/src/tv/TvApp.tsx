@@ -43,6 +43,10 @@ function eventLabel(kind: string): string {
   return eventText[kind] || kind;
 }
 
+function moreText(count: number, singular: string, plural: string): string {
+  return count === 1 ? `1 ${singular} till` : `${count} ${plural} till`;
+}
+
 export function TvApp() {
   const [data, setData] = useState<TvPayload | null>(null);
   const [error, setError] = useState<Error | null>(null);
@@ -114,13 +118,24 @@ export function TvApp() {
         ? "Avslutad"
         : "Planerad"
     : "";
-  const visibleUpcoming = (upcomingMatches.length ? upcomingMatches : sortedMatches.filter((match) => match.status !== "completed")).slice(0, 5);
-  const scheduleMatches = (upcomingMatches.length ? upcomingMatches : sortedMatches.filter((match) => match.status !== "completed")).slice(0, 8);
+  const openScheduleMatches = sortedMatches.filter((match) => match.status !== "completed");
+  const upcomingSource = upcomingMatches.length ? upcomingMatches : openScheduleMatches;
+  const visibleUpcoming = upcomingSource.slice(0, 5);
+  const scheduleMatches = upcomingSource.slice(0, 8);
+  const hiddenUpcomingCount = Math.max(0, openScheduleMatches.length - visibleUpcoming.length);
+  const hiddenScheduleCount = Math.max(0, openScheduleMatches.length - scheduleMatches.length);
   const standings = data?.standings || [];
+  const visibleStandings = standings.slice(0, 2);
+  const hiddenStandingCount = Math.max(0, standings.length - visibleStandings.length);
   const resources = data?.resources || [];
   const visibleResources = resources.slice(0, 4);
-  const recentMatches = (data?.recent_matches || []).slice(0, 5);
+  const hiddenResourceCount = Math.max(0, resources.length - visibleResources.length);
+  const recentSource = data?.recent_matches || [];
+  const recentMatches = recentSource.slice(0, 5);
+  const hiddenRecentCount = Math.max(0, recentSource.length - recentMatches.length);
   const events = data?.events || [];
+  const visibleEvents = events.slice(0, 5);
+  const hiddenEventCount = Math.max(0, events.length - visibleEvents.length);
   const knockoutRounds: RoundGroup[] = [...new Set(matches.filter((match) => match.stage_kind === "knockout").map((match) => Number(match.round)))]
     .sort((a, b) => a - b)
     .map((round) => ({
@@ -182,6 +197,7 @@ export function TvApp() {
                 {visibleUpcoming.map((match) => (
                   <div key={match.id} className="tv-row"><strong>{match.time_label}</strong><span>{match.side_a} <em>vs</em> {match.side_b}</span><span>{match.group_name || match.stage_name || "-"}</span></div>
                 ))}
+                {hiddenUpcomingCount ? <p className="tv-more">{moreText(hiddenUpcomingCount, "match", "matcher")} finns i schemat</p> : null}
               </div>
             </section>
 
@@ -192,6 +208,7 @@ export function TvApp() {
                 {recentMatches.map((match) => (
                   <div key={match.id} className="tv-row"><span>{match.time_label}</span><strong>{match.side_a} <em>vs</em> {match.side_b}</strong><span>{match.score_label}</span></div>
                 ))}
+                {hiddenRecentCount ? <p className="tv-more">{moreText(hiddenRecentCount, "resultat", "resultat")}</p> : null}
               </div>
             </section>
           </div>
@@ -204,7 +221,7 @@ export function TvApp() {
               {!standings.length ? <p className="tv-empty">Generera gruppspel för att visa tabeller.</p> : null}
               {standings.length ? (
                 <div className="tv-standings-grid">
-                  {standings.slice(0, 2).map((standing) => (
+                  {visibleStandings.map((standing) => (
                     <article key={standing.group.id}>
                       <h2>{standing.group.name}</h2>
                       <table>
@@ -215,10 +232,12 @@ export function TvApp() {
                           ))}
                         </tbody>
                       </table>
+                      {standing.rows.length > 4 ? <p className="tv-more">{moreText(standing.rows.length - 4, "lag", "lag")} i gruppen</p> : null}
                     </article>
                   ))}
                 </div>
               ) : null}
+              {hiddenStandingCount ? <p className="tv-more">{moreText(hiddenStandingCount, "grupp", "grupper")}</p> : null}
             </section>
 
             <section className="tv-panel tv-bracket">
@@ -240,9 +259,10 @@ export function TvApp() {
               <h2>Senaste aktivitet</h2>
               <div className="tv-ticker-list">
                 {!events.length ? <p className="tv-empty">Inga händelser ännu.</p> : null}
-                {events.slice(0, 5).map((event) => (
+                {visibleEvents.map((event) => (
                   <article key={event.id}><span className="notice-dot" /><div><strong>{eventLabel(event.kind)}</strong><small>{formatDate(event.created_at, { hour: "2-digit", minute: "2-digit" })}</small></div></article>
                 ))}
+                {hiddenEventCount ? <p className="tv-more">{moreText(hiddenEventCount, "händelse", "händelser")}</p> : null}
               </div>
             </section>
           </div>
@@ -258,6 +278,7 @@ export function TvApp() {
                 {scheduleMatches.map((match) => (
                   <div key={match.id} className="tv-row"><strong>{match.time_label}</strong><span>{match.side_a} <em>vs</em> {match.side_b}</span><span>{match.group_name || match.stage_name || match.name}</span><span>{statusLabel(match.status)}</span></div>
                 ))}
+                {hiddenScheduleCount ? <p className="tv-more">{moreText(hiddenScheduleCount, "match", "matcher")} i schemat</p> : null}
               </div>
             </section>
 
@@ -268,6 +289,7 @@ export function TvApp() {
                 {recentMatches.map((match) => (
                   <div key={match.id} className="tv-row"><span>{match.time_label}</span><strong>{match.side_a} <em>vs</em> {match.side_b}</strong><span>{match.score_label}</span></div>
                 ))}
+                {hiddenRecentCount ? <p className="tv-more">{moreText(hiddenRecentCount, "resultat", "resultat")}</p> : null}
               </div>
             </section>
 
@@ -278,6 +300,7 @@ export function TvApp() {
                 {visibleResources.map((resource) => (
                   <article key={resource.id}><strong>{resource.name}</strong><span>{resource.kind}</span></article>
                 ))}
+                {hiddenResourceCount ? <p className="tv-more">{moreText(hiddenResourceCount, "plats", "platser")}</p> : null}
               </div>
             </section>
           </div>

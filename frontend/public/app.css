@@ -1903,6 +1903,25 @@ body.tv {
   font-weight: 900;
 }
 
+.tv-more {
+  margin: 14px 0 0;
+  color: #9fb0c6;
+  font-size: 18px;
+  font-weight: 850;
+}
+
+.tv-table .tv-more {
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+  padding-top: 12px;
+  text-align: right;
+}
+
+.tv-standings article .tv-more,
+.tv-resource-grid .tv-more,
+.tv-ticker-list .tv-more {
+  font-size: 16px;
+}
+
 .tv-head {
   min-height: 44px;
   color: #9fb0c6;

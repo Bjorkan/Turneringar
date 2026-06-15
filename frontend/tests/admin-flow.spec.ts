@@ -238,3 +238,58 @@ test("Live TV rymmer långa lagnamn på 1920-skärm", async ({ page }) => {
   });
   expect(overflow).toEqual([]);
 });
+
+test("Live TV visar när listor fortsätter utanför sliden", async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await loginAsAdmin(page);
+
+  const tournamentName = `TV More Cup ${Date.now()}`;
+  let response = await page.request.post("/api/tournaments", {
+    data: {
+      name: tournamentName,
+      starts_at: "2026-12-14T10:00",
+      group_count: 3,
+      qualifiers_per_group: 1,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+  const tournament = await response.json() as { id: number };
+
+  for (let index = 1; index <= 15; index += 1) {
+    response = await page.request.post(`/api/tournaments/${tournament.id}/participants`, {
+      data: { name: `Lag ${index}`, kind: "team", seed: index },
+    });
+    expect(response.ok()).toBeTruthy();
+  }
+
+  for (let index = 1; index <= 5; index += 1) {
+    response = await page.request.post(`/api/tournaments/${tournament.id}/resources`, {
+      data: { name: `Plan ${index}`, kind: "court" },
+    });
+    expect(response.ok()).toBeTruthy();
+  }
+
+  response = await page.request.post(`/api/tournaments/${tournament.id}/generate`, { data: {} });
+  expect(response.ok()).toBeTruthy();
+  response = await page.request.post(`/api/tournaments/${tournament.id}/schedule`, { data: {} });
+  expect(response.ok()).toBeTruthy();
+
+  const tvCode = `TM${Date.now().toString().slice(-8)}`;
+  response = await page.request.post("/api/tv-links", { data: { label: "More TV", code: tvCode } });
+  expect(response.ok()).toBeTruthy();
+  const tvLink = (await response.json() as { tv_link: { id: number } }).tv_link;
+  response = await page.request.patch(`/api/tv-links/${tvLink.id}`, {
+    data: {
+      label: "More TV",
+      tournament_id: tournament.id,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+
+  await page.goto(`/tv/${tvCode}`);
+  await expect(page.getByText(tournamentName)).toBeVisible();
+  await expect(page.locator(".tv-stage")).toContainText(/matcher till/);
+  await expect(page.locator(".tv-stage")).toContainText("1 grupp till");
+  await expect(page.locator(".tv-stage")).toContainText("1 lag till i gruppen");
+  await expect(page.locator(".tv-stage")).toContainText("1 plats till");
+});
