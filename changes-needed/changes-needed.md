@@ -68,6 +68,9 @@ Jag anropar nu `seed_knockout_from_groups()` direkt i slutet av `generate_struct
 
 11. `qualifiers_per_group` kan sättas högre än antalet deltagare i grupperna och skapar omöjliga placeholder-slots som aldrig fylls. Det finns ingen validering i create/settings/generate. Se `backend/turneringar/main.py:217-219`, `backend/turneringar/main.py:299-302`, `backend/turneringar/services.py:134-144`, `backend/turneringar/services.py:743-753`.
 
+Status: Löst
+Jag flyttade gruppfördelningen i `generate_structure()` så den sker före någon gammal struktur raderas. Därefter körs nya `validate_qualifier_depth()`, som stoppar generering om `qualifiers_per_group` är högre än minsta gruppens deltagarantal. Det gör att API:t kan fortsätta spara inställningar i förväg, men själva bracketbygget skapar aldrig omöjliga kvalplatser som inte kan fyllas. Regressionstestet `backend/tests/test_services.py::TournamentServiceTests::test_generate_rejects_more_qualifiers_than_group_members` verifierar felet och att inga stages eller matcher skapas när inställningen är ogiltig.
+
 12. Skapande av turnering accepterar negativa eller absurda strukturvärden. `create_tournament()` skickar `group_count` och `qualifiers_per_group` rakt till databasen, till skillnad från `update_tournament_settings()` som klampar värden. UI har `min`, men API:t är öppet för skräp. Se `backend/turneringar/main.py:217-219`, `backend/turneringar/store.py:40-64`, `backend/turneringar/store.py:100-118`.
 
 13. Ogiltiga datum kan lagras och krascha senare schemaläggning. `starts_at` tas emot som valfri sträng och `schedule_matches()` kör `datetime.fromisoformat()` utan felöversättning. Se `backend/turneringar/main.py:217`, `backend/turneringar/main.py:298`, `backend/turneringar/services.py:25`, `backend/turneringar/services.py:347`.

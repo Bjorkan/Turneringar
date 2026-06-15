@@ -137,6 +137,20 @@ class TournamentServiceTests(unittest.TestCase):
         ]
         self.assertEqual([], same_group_pairings)
 
+    def test_generate_rejects_more_qualifiers_than_group_members(self) -> None:
+        tournament_id = self.create_seeded_tournament(
+            participant_count=3,
+            resource_count=1,
+            group_count=3,
+            qualifiers_per_group=2,
+        )
+
+        with self.assertRaisesRegex(ValueError, "Vidare/grupp"):
+            services.generate_structure(self.conn, tournament_id)
+
+        self.assertEqual([], store.list_stages(self.conn, tournament_id))
+        self.assertEqual([], store.list_matches(self.conn, tournament_id))
+
     def test_live_score_does_not_complete_or_seed(self) -> None:
         tournament_id = self.create_seeded_tournament()
         services.generate_structure(self.conn, tournament_id)

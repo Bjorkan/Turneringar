@@ -81,6 +81,9 @@ def generate_structure(
     if store.list_matches(conn, tournament_id) and not confirm_reset:
         raise ValueError("Bekräfta att befintliga matcher, resultat och schema ska ersättas.")
 
+    grouped = distribute_participants(participants, tournament["group_count"])
+    validate_qualifier_depth(grouped, tournament["qualifiers_per_group"])
+
     with conn:
         conn.execute("DELETE FROM stages WHERE tournament_id = ?", (tournament_id,))
 
@@ -92,7 +95,6 @@ def generate_structure(
             (tournament_id,),
         ).lastrowid
 
-        grouped = distribute_participants(participants, tournament["group_count"])
         created_groups: list[dict] = []
         for index, members in enumerate(grouped):
             name = GROUP_NAMES[index] if index < len(GROUP_NAMES) else f"Grupp {index + 1}"
@@ -156,6 +158,12 @@ def generate_structure(
         )
         store.add_event(conn, tournament_id, "structure_generated", {"tournament_id": tournament_id})
         seed_knockout_from_groups(conn, tournament_id)
+
+
+def validate_qualifier_depth(grouped: list[list[dict]], qualifiers_per_group: int) -> None:
+    smallest_group_size = min((len(group) for group in grouped), default=0)
+    if qualifiers_per_group > smallest_group_size:
+        raise ValueError("Vidare/grupp kan inte vara högre än antalet deltagare i minsta gruppen.")
 
 
 def build_qualifier_slots(groups: list[dict], qualifiers_per_group: int) -> list[dict]:
