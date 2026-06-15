@@ -341,6 +341,20 @@ def create_moderator_token(
     label: str,
     resource_id: int | None,
 ) -> dict:
+    if not get_tournament(conn, tournament_id):
+        raise ValueError("Turneringen finns inte.")
+    if resource_id is not None:
+        resource = row_to_dict(
+            conn.execute(
+                "SELECT id, tournament_id FROM resources WHERE id = ?",
+                (resource_id,),
+            ).fetchone()
+        )
+        if not resource:
+            raise ValueError("Resursen finns inte.")
+        if resource["tournament_id"] != tournament_id:
+            raise ValueError("Resursen hör inte till turneringen.")
+
     pin = f"{secrets.randbelow(900000) + 100000}"
     token = secrets.token_urlsafe(24)
     cursor = conn.execute(

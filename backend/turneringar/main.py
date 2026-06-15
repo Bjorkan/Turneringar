@@ -491,14 +491,17 @@ async def add_moderator(request: Request, tournament_id: int) -> dict[str, Any]:
     require_admin(request)
     payload = await json_body(request)
     label = require_text(payload, "label", "Etikett")
-    with session() as conn:
-        with conn:
-            moderator = store.create_moderator_token(
-                conn,
-                tournament_id,
-                label,
-                parse_int(payload.get("resource_id")),
-            )
+    try:
+        with session() as conn:
+            with conn:
+                moderator = store.create_moderator_token(
+                    conn,
+                    tournament_id,
+                    label,
+                    parse_int(payload.get("resource_id")),
+                )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"moderator": moderator}
 
 

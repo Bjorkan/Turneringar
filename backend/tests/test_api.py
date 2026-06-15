@@ -414,6 +414,35 @@ def test_invalid_tournament_dates_return_400(client: ApiClient) -> None:
     assert "giltigt datum" in response.text
 
 
+def test_moderator_resource_scope_must_belong_to_tournament(client: ApiClient) -> None:
+    login(client)
+    tournament_id = create_ready_tournament(client)
+    foreign_tournament_id = create_ready_tournament(client)
+    foreign_dashboard = client.get(f"/api/tournaments/{foreign_tournament_id}").json()
+    foreign_resource_id = foreign_dashboard["resources"][0]["id"]
+
+    response = client.post(
+        f"/api/tournaments/{tournament_id}/moderators",
+        json={"label": "Fel scope", "resource_id": foreign_resource_id},
+    )
+    assert response.status_code == 400
+    assert "hör inte" in response.text
+
+    response = client.post(
+        f"/api/tournaments/{tournament_id}/moderators",
+        json={"label": "Saknad scope", "resource_id": 999999},
+    )
+    assert response.status_code == 400
+    assert "finns inte" in response.text
+
+    response = client.post(
+        f"/api/tournaments/{tournament_id}/moderators",
+        json={"label": "Alla resurser"},
+    )
+    assert response.status_code == 200
+    assert response.json()["moderator"]["resource_id"] is None
+
+
 def test_static_frontends_are_served(client: ApiClient) -> None:
     assert client.get("/").status_code == 200
     assert client.get("/admin").status_code == 200
