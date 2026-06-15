@@ -249,6 +249,7 @@ class TournamentServiceTests(unittest.TestCase):
 
         errors = services.validate_manual_slot(
             self.conn,
+            tournament_id,
             second["id"],
             first["resource_id"],
             first["scheduled_at"],
@@ -256,6 +257,30 @@ class TournamentServiceTests(unittest.TestCase):
         )
 
         self.assertTrue(any("Resurskrock" in error for error in errors))
+
+    def test_manual_override_rejects_foreign_resource(self) -> None:
+        tournament_id = self.create_seeded_tournament(participant_count=4, resource_count=1)
+        foreign_tournament_id = self.create_seeded_tournament(participant_count=4, resource_count=1)
+        services.generate_structure(self.conn, tournament_id)
+        match = next(
+            match
+            for match in store.list_matches(self.conn, tournament_id)
+            if match["stage_kind"] == "group"
+        )
+        foreign_resource = store.list_resources(self.conn, foreign_tournament_id)[0]
+
+        errors = services.apply_manual_slot(
+            self.conn,
+            tournament_id,
+            match["id"],
+            foreign_resource["id"],
+            "2026-06-13T10:00",
+            20,
+        )
+
+        self.assertEqual(["Resursen hör inte till turneringen."], errors)
+        updated = store.get_match(self.conn, match["id"])
+        self.assertIsNone(updated["resource_id"])
 
     def test_moderator_token_scope_limits_resource_updates(self) -> None:
         tournament_id = self.create_seeded_tournament(participant_count=6, resource_count=2)

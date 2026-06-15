@@ -430,14 +430,25 @@ def schedule_matches(conn: sqlite3.Connection, tournament_id: int) -> None:
 
 def validate_manual_slot(
     conn: sqlite3.Connection,
+    tournament_id: int,
     match_id: int,
     resource_id: int,
     scheduled_at: str,
     duration_minutes: int,
 ) -> list[str]:
     match = store.get_match(conn, match_id)
-    if not match:
+    if not match or match["tournament_id"] != tournament_id:
         return ["Matchen finns inte."]
+    resource = store.row_to_dict(
+        conn.execute(
+            "SELECT id, tournament_id FROM resources WHERE id = ?",
+            (resource_id,),
+        ).fetchone()
+    )
+    if not resource:
+        return ["Resursen finns inte."]
+    if resource["tournament_id"] != tournament_id:
+        return ["Resursen hör inte till turneringen."]
     if not match_is_playable(match):
         return ["Matchen saknar deltagare och kan inte schemaläggas."]
     start = parse_local_datetime(scheduled_at)
@@ -506,7 +517,7 @@ def apply_manual_slot(
     scheduled_at: str,
     duration_minutes: int,
 ) -> list[str]:
-    errors = validate_manual_slot(conn, match_id, resource_id, scheduled_at, duration_minutes)
+    errors = validate_manual_slot(conn, tournament_id, match_id, resource_id, scheduled_at, duration_minutes)
     if errors:
         return errors
     with conn:
