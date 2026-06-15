@@ -4,6 +4,7 @@ import asyncio
 import json
 from collections import defaultdict
 from dataclasses import dataclass
+from typing import Hashable
 
 
 @dataclass
@@ -17,19 +18,19 @@ class LiveEvent:
 
 class RealtimeHub:
     def __init__(self) -> None:
-        self._queues: dict[int, set[asyncio.Queue[LiveEvent]]] = defaultdict(set)
+        self._queues: dict[Hashable, set[asyncio.Queue[LiveEvent]]] = defaultdict(set)
 
-    async def subscribe(self, tournament_id: int):
+    async def subscribe(self, channel: Hashable):
         queue: asyncio.Queue[LiveEvent] = asyncio.Queue(maxsize=20)
-        self._queues[tournament_id].add(queue)
+        self._queues[channel].add(queue)
         try:
             yield queue
         finally:
-            self._queues[tournament_id].discard(queue)
+            self._queues[channel].discard(queue)
 
-    def publish(self, tournament_id: int, kind: str, payload: dict) -> None:
+    def publish(self, channel: Hashable, kind: str, payload: dict) -> None:
         event = LiveEvent(kind=kind, payload=payload)
-        for queue in list(self._queues.get(tournament_id, set())):
+        for queue in list(self._queues.get(channel, set())):
             if queue.full():
                 try:
                     queue.get_nowait()
@@ -39,4 +40,4 @@ class RealtimeHub:
 
 
 hub = RealtimeHub()
-
+tv_hub = RealtimeHub()

@@ -5,17 +5,58 @@ type ApiBody = BodyInit | Record<string, unknown> | null;
 type ApiOptions = Omit<RequestInit, "body"> & { body?: ApiBody };
 type DateValue = string | number | Date | null | undefined;
 
-const navItems = [
-  ["Översikt", "home"],
-  ["Turneringar", "cup"],
-  ["Matcher", "calendar"],
-  ["Deltagare", "users"],
-  ["Schema", "schedule"],
-  ["Slutspel", "bracket"],
-  ["Live TV", "tv"],
-  ["Moderatorer", "shield"],
-  ["Inställningar", "settings"],
+type NavItem = {
+  label: string;
+  glyph: string;
+  tournamentOnly?: boolean;
+  external?: boolean;
+};
+
+const navItems: NavItem[] = [
+  { label: "Turneringar", glyph: "T" },
+  { label: "Live TV", glyph: "TV" },
+  { label: "Översikt", glyph: "Ö", tournamentOnly: true },
+  { label: "Matcher", glyph: "M", tournamentOnly: true },
+  { label: "Deltagare", glyph: "D", tournamentOnly: true },
+  { label: "Schema", glyph: "S", tournamentOnly: true },
+  { label: "Slutspel", glyph: "SL", tournamentOnly: true },
+  { label: "Moderatorer", glyph: "MO", tournamentOnly: true },
+  { label: "Inställningar", glyph: "IN", tournamentOnly: true },
 ];
+
+const sectionTargets: Record<string, string> = {
+  Matcher: "#matcher",
+  Deltagare: "#deltagare",
+  Schema: "#schema",
+  Slutspel: "#slutspel",
+  Moderatorer: "#moderatorer",
+  Inställningar: "#inställningar",
+};
+
+const sectionLabels: Record<string, string> = {
+  "#översikt": "Översikt",
+  "#matcher": "Matcher",
+  "#alla-matcher": "Matcher",
+  "#deltagare": "Deltagare",
+  "#schema": "Schema",
+  "#slutspel": "Slutspel",
+  "#moderatorer": "Moderatorer",
+  "#inställningar": "Inställningar",
+};
+
+const normalizedHash = () => {
+  try {
+    return decodeURIComponent(window.location.hash || "");
+  } catch {
+    return window.location.hash || "";
+  }
+};
+
+const tournamentSectionFromHash = () => {
+  const hash = normalizedHash() || "#översikt";
+  if (hash === "#alla-matcher") return "matcher";
+  return hash.replace("#", "") || "översikt";
+};
 
 const statusText = {
   pending: "Planerad",
@@ -34,6 +75,7 @@ const eventText = {
   structure_generated: "Slutspel publicerat",
   bracket_seeded: "Slutspel seedat",
   schedule_updated: "Schema uppdaterat",
+  score_updated: "Livepoäng uppdaterad",
   result_updated: "Resultat rapporterat",
 };
 
@@ -98,6 +140,14 @@ const initials = (name) =>
     .map((part) => (part[0] || "").toUpperCase())
     .join("") || "T";
 
+const participantKindText = (kind) => (kind === "player" ? "Spelare" : "Lag");
+
+const resourceKindText = (kind) => {
+  if (kind === "server") return "Server";
+  if (kind === "table") return "Bord";
+  return "Spelplan";
+};
+
 const NoticeBox = {
   props: ["notice"],
   emits: ["clear"],
@@ -147,21 +197,28 @@ const AdminShell = {
   props: ["active", "tournamentId", "notice"],
   emits: ["navigate", "logout", "notice", "clear"],
   data() {
-    return { navItems, compact: false };
+    return { navItems, compact: window.matchMedia("(max-width: 900px)").matches };
+  },
+  computed: {
+    visibleNavItems() {
+      return this.tournamentId ? navItems : navItems.filter((item) => !item.tournamentOnly);
+    },
   },
   methods: {
-    hrefFor(label) {
+    hrefFor(item) {
+      const label = item.label;
+      if (label === "Turneringar") return "/admin";
+      if (label === "Live TV") return "/admin/tv";
       if (!this.tournamentId) return "/admin";
-      if (label === "Översikt") return `/tournaments/${this.tournamentId}`;
-      if (label === "Live TV") return `/tv/${this.tournamentId}`;
-      return `#${label.toLowerCase().replace(" ", "-")}`;
+      if (label === "Översikt") return "#översikt";
+      return sectionTargets[label] || `/tournaments/${this.tournamentId}`;
     },
-    isActive(label) {
-      return label === this.active || (!this.tournamentId && label === "Turneringar");
+    isActive(item) {
+      return item.label === this.active;
     },
-    follow(event, label) {
-      const href = this.hrefFor(label);
-      if (href.startsWith("/") && label !== "Live TV") {
+    follow(event, item) {
+      const href = this.hrefFor(item);
+      if (href.startsWith("/") && !item.external) {
         event.preventDefault();
         this.$emit("navigate", href);
       }
@@ -175,9 +232,9 @@ const AdminShell = {
           <span>Turneringar</span>
         </a>
         <nav class="side-nav">
-          <a v-for="item in navItems" :key="item[0]" :href="hrefFor(item[0])" :class="{ active: isActive(item[0]) }" @click="follow($event, item[0])">
-            <span :class="['nav-icon', item[1]]" aria-hidden="true"></span>
-            <span>{{ item[0] }}</span>
+          <a v-for="item in visibleNavItems" :key="item.label" :href="hrefFor(item)" :class="{ active: isActive(item) }" @click="follow($event, item)">
+            <span class="nav-glyph" aria-hidden="true">{{ item.glyph }}</span>
+            <span>{{ item.label }}</span>
           </a>
         </nav>
         <button class="link-button" type="button" @click="$emit('logout')">Logga ut</button>
@@ -193,7 +250,6 @@ const AdminShell = {
             <kbd>⌘ K</kbd>
           </label>
           <div class="top-actions">
-            <button class="icon-button" type="button" aria-label="Notiser" @click="$emit('notice', 'Inga nya systemnotiser.')">!</button>
             <div class="user-chip" aria-label="Inloggad användare">
               <span>AD</span>
               <strong>Admin</strong>
@@ -282,13 +338,20 @@ const AdminHome = {
             <template v-else>
               <article v-for="(tournament, index) in visibleTournaments" :key="tournament.id" :class="['tournament-card', index === 0 && 'selected']">
                 <div :class="'card-symbol tone-' + ((index % 5) + 1)" aria-hidden="true">{{ initials(tournament.name) }}</div>
-                <div>
+                <div class="tournament-card-main">
                   <h2><a :href="'/tournaments/' + tournament.id" @click.prevent="$emit('navigate', '/tournaments/' + tournament.id)">{{ tournament.name }}</a></h2>
                   <p>{{ formatDate(tournament.starts_at) }}</p>
-                  <p>{{ tournament.participant_count }} deltagare · {{ tournament.resource_count }} resurser · {{ tournament.match_count }} matcher</p>
+                  <div class="tournament-stats">
+                    <span><strong>{{ tournament.participant_count }}</strong><small>Deltagare</small></span>
+                    <span><strong>{{ tournament.resource_count }}</strong><small>Platser</small></span>
+                    <span><strong>{{ tournament.match_count }}</strong><small>Matcher</small></span>
+                  </div>
                 </div>
-                <status-badge :status="tournament.status" />
-                <a class="icon-link" :href="'/tv/' + tournament.id" aria-label="Öppna Live TV">TV</a>
+                <div class="tournament-actions">
+                  <status-badge :status="tournament.status" />
+                  <a class="button subtle" :href="'/tournaments/' + tournament.id" @click.prevent="$emit('navigate', '/tournaments/' + tournament.id)">Öppna</a>
+                  <a class="icon-link" href="/admin/tv" aria-label="Hantera Live TV" @click.prevent="$emit('navigate', '/admin/tv')">TV</a>
+                </div>
               </article>
             </template>
           </div>
@@ -314,6 +377,7 @@ const AdminHome = {
               <div><span>{{ tournaments.length }}</span><small>Turneringar</small></div>
               <div><span>{{ participantTotal }}</span><small>Deltagare</small></div>
               <div><span>{{ matchTotal }}</span><small>Matcher</small></div>
+              <div><span>{{ visibleTournaments.length }}</span><small>Visade</small></div>
             </div>
           </section>
         </aside>
@@ -321,12 +385,181 @@ const AdminHome = {
   `,
 };
 
+const LiveTvAdmin = {
+  components: { StatusBadge },
+  emits: ["notice", "error"],
+  data() {
+    return { loading: true, tvLinks: [], tournaments: [], resources: [], drafts: {} };
+  },
+  computed: {
+    boundCount() {
+      return this.tvLinks.filter((link) => link.tournament_id).length;
+    },
+    waitingCount() {
+      return this.tvLinks.length - this.boundCount;
+    },
+  },
+  mounted() {
+    this.load();
+  },
+  methods: {
+    formatDate,
+    resourceKindText,
+    tvUrl(link) {
+      return `${location.origin}/tv/${link.code}`;
+    },
+    bindingLabel(link) {
+      if (!link.tournament_id) return "Ansluten, väntar på information";
+      return link.resource_name ? `${link.tournament_name} · ${link.resource_name}` : `${link.tournament_name} · alla resurser`;
+    },
+    resourcesForTournament(tournamentId) {
+      const id = Number(tournamentId);
+      if (!id) return [];
+      return this.resources.filter((resource) => Number(resource.tournament_id) === id);
+    },
+    resetDrafts() {
+      const drafts = {};
+      for (const link of this.tvLinks) {
+        drafts[link.id] = {
+          label: link.label || "Live TV",
+          tournament_id: link.tournament_id || "",
+          resource_id: link.resource_id || "",
+        };
+      }
+      this.drafts = drafts;
+    },
+    async load() {
+      this.loading = true;
+      try {
+        const payload = await api("/api/tv-links");
+        this.tvLinks = payload.tv_links || [];
+        this.tournaments = payload.tournaments || [];
+        this.resources = payload.resources || [];
+        this.resetDrafts();
+      } catch (error) {
+        this.$emit("error", error);
+      } finally {
+        this.loading = false;
+      }
+    },
+    async createTvLink(event) {
+      try {
+        const form = event.currentTarget;
+        await api("/api/tv-links", { method: "POST", body: formPayload(form) });
+        form.reset();
+        this.$emit("notice", "Live TV-länk skapad.");
+        await this.load();
+      } catch (error) {
+        this.$emit("error", error);
+      }
+    },
+    async saveLink(link) {
+      const draft = this.drafts[link.id];
+      if (!draft) return;
+      try {
+        await api(`/api/tv-links/${link.id}`, { method: "PATCH", body: draft });
+        this.$emit("notice", "Live TV-bindning uppdaterad.");
+        await this.load();
+      } catch (error) {
+        this.$emit("error", error);
+      }
+    },
+  },
+  template: `
+    <section class="page-head">
+      <div>
+        <p class="eyebrow">Instans</p>
+        <h1>Live TV</h1>
+        <p>{{ tvLinks.length }} länkar · {{ boundCount }} bundna · {{ waitingCount }} väntar</p>
+      </div>
+      <a class="button primary" href="#new-tv-link">Lägg till ny Live TV</a>
+    </section>
+
+    <section class="tv-admin-page">
+      <div class="tv-admin-main">
+        <section class="panel" id="new-tv-link">
+          <div class="panel-head">
+            <div><h2>Ny Live TV-länk</h2><p>Skapa en publik skärmlänk med automatisk eller egen kod.</p></div>
+          </div>
+          <form class="inline-form tv-create-form" @submit.prevent="createTvLink">
+            <label>Etikett <input name="label" placeholder="Entré, hallskärm eller stream"></label>
+            <label>Egen kod <input name="code" maxlength="10" pattern="[A-Za-z0-9]{10}" placeholder="10 tecken, valfritt"></label>
+            <button type="submit">Skapa länk</button>
+          </form>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div><h2>TV-länkar</h2><p>Uppdateringar slår igenom direkt på anslutna skärmar.</p></div>
+            <span class="count-pill">{{ tvLinks.length }}</span>
+          </div>
+          <p v-if="loading" class="empty">Laddar Live TV-länkar...</p>
+          <p v-else-if="!tvLinks.length" class="empty">Inga TV-länkar ännu.</p>
+          <div v-else class="tv-link-grid">
+            <article v-for="link in tvLinks" :key="link.id" class="tv-link-card">
+              <header>
+                <div>
+                  <span class="code-chip">{{ link.code }}</span>
+                  <h3>{{ link.label }}</h3>
+                  <p>{{ bindingLabel(link) }}</p>
+                </div>
+                <span :class="['status-badge', link.tournament_id ? 'success' : 'neutral']">{{ link.tournament_id ? 'Aktiv' : 'Väntar' }}</span>
+              </header>
+              <div class="tv-link-url">
+                <input :value="tvUrl(link)" readonly aria-label="TV-länk">
+                <a class="button subtle" :href="'/tv/' + link.code" target="_blank" rel="noreferrer">Öppna</a>
+              </div>
+              <form v-if="drafts[link.id]" class="binding-form" @submit.prevent="saveLink(link)">
+                <label>Etikett <input v-model="drafts[link.id].label"></label>
+                <label>Turnering
+                  <select v-model="drafts[link.id].tournament_id" @change="drafts[link.id].resource_id = ''">
+                    <option value="">Ingen bindning</option>
+                    <option v-for="tournament in tournaments" :key="tournament.id" :value="tournament.id">{{ tournament.name }}</option>
+                  </select>
+                </label>
+                <label>Resurs
+                  <select v-model="drafts[link.id].resource_id" :disabled="!drafts[link.id].tournament_id">
+                    <option value="">Alla arenor/servrar</option>
+                    <option v-for="resource in resourcesForTournament(drafts[link.id].tournament_id)" :key="resource.id" :value="resource.id">{{ resource.name }} · {{ resourceKindText(resource.kind) }}</option>
+                  </select>
+                </label>
+                <button type="submit">Uppdatera live</button>
+              </form>
+            </article>
+          </div>
+        </section>
+      </div>
+
+      <aside class="side-stack">
+        <section class="panel">
+          <h2>Överblick</h2>
+          <div class="side-metrics">
+            <div><span>{{ tvLinks.length }}</span><small>Länkar</small></div>
+            <div><span>{{ boundCount }}</span><small>Aktiva</small></div>
+            <div><span>{{ waitingCount }}</span><small>Väntar</small></div>
+            <div><span>{{ tournaments.length }}</span><small>Turneringar</small></div>
+          </div>
+        </section>
+        <section class="panel">
+          <h2>Senaste länkar</h2>
+          <div class="mini-list">
+            <p v-if="!tvLinks.length" class="empty">Inga länkar skapade.</p>
+            <template v-else>
+              <article v-for="link in tvLinks.slice(0, 5)" :key="link.id"><div><strong>{{ link.label }}</strong><small>{{ link.code }} · {{ link.tournament_name || 'väntar' }}</small></div><span :class="['status-badge', link.tournament_id ? 'success' : 'neutral']">{{ link.tournament_id ? 'Aktiv' : 'Väntar' }}</span></article>
+            </template>
+          </div>
+        </section>
+      </aside>
+    </section>
+  `,
+};
+
 const TournamentView = {
   components: { StatusBadge },
   props: ["id"],
-  emits: ["notice", "error"],
+  emits: ["notice", "error", "navigate"],
   data() {
-    return { data: null, loading: true, eventSource: null, eventText };
+    return { data: null, loading: true, eventSource: null, eventText, sectionLabels, activeSection: tournamentSectionFromHash(), scoreDialog: null };
   },
   computed: {
     tournament() {
@@ -365,9 +598,51 @@ const TournamentView = {
     events() {
       return this.data ? this.data.events || [] : [];
     },
+    statusCounts() {
+      return {
+        all: this.matches.length,
+        live: this.currentMatches.length,
+        upcoming: this.upcomingMatches.length,
+        done: this.completedMatches.length,
+        unplaced: this.matches.filter((match) => !match.resource_id || !match.scheduled_at).length,
+      };
+    },
+    participantBreakdown() {
+      const teams = this.participants.filter((participant) => participant.kind !== "player").length;
+      const players = this.participants.length - teams;
+      return { teams, players };
+    },
+    seededCount() {
+      return this.participants.filter((participant) => participant.seed).length;
+    },
+    seededParticipants() {
+      return [...this.participants].sort((a, b) => {
+        const seedA = a.seed == null ? Number.MAX_SAFE_INTEGER : Number(a.seed);
+        const seedB = b.seed == null ? Number.MAX_SAFE_INTEGER : Number(b.seed);
+        return seedA - seedB || a.name.localeCompare(b.name);
+      });
+    },
+    selectedParticipant() {
+      return this.seededParticipants[0] || null;
+    },
+    resourcesWithMatches() {
+      return this.resources.map((resource) => ({
+        ...resource,
+        matches: this.sortedMatches.filter((match) => match.resource_id === resource.id).slice(0, 5),
+      }));
+    },
+    unplacedMatches() {
+      return this.sortedMatches.filter((match) => !match.resource_id || !match.scheduled_at).slice(0, 6);
+    },
+    qualifiedRows() {
+      const limit = Math.max(1, Number(this.tournament.qualifiers_per_group || 1));
+      return this.standings.flatMap((standing) =>
+        standing.rows.slice(0, limit).map((row) => ({ ...row, groupName: standing.group.name })),
+      );
+    },
     knockoutRounds() {
       const knockout = this.matches.filter((match) => match.stage_kind === "knockout");
-      return [...new Set(knockout.map((match) => Number(match.round)))]
+      return [...new Set<number>(knockout.map((match) => Number(match.round)))]
         .sort((a, b) => a - b)
         .map((round) => ({ round, matches: knockout.filter((match) => Number(match.round) === round) }));
     },
@@ -381,17 +656,48 @@ const TournamentView = {
   mounted() {
     this.load();
     this.subscribe();
+    window.addEventListener("hashchange", this.syncSection);
   },
   beforeUnmount() {
     if (this.eventSource) this.eventSource.close();
+    window.removeEventListener("hashchange", this.syncSection);
   },
   methods: {
     formatDate,
     formatTime,
     statusTone,
+    initials,
+    participantKindText,
+    resourceKindText,
+    canScoreMatch(match) {
+      return Boolean(match.participant_a_id && match.participant_b_id);
+    },
+    sectionFromHash() {
+      return tournamentSectionFromHash();
+    },
+    syncSection() {
+      this.activeSection = this.sectionFromHash();
+    },
+    showSection(section) {
+      return this.activeSection === section;
+    },
+    openScoreDialog(match) {
+      if (!this.canScoreMatch(match)) {
+        this.$emit("notice", "Matchen saknar lag och kan inte poängrapporteras.", "danger");
+        return;
+      }
+      this.scoreDialog = { ...match };
+    },
+    closeScoreDialog() {
+      this.scoreDialog = null;
+    },
     roundTitle(round) {
       const first = round.matches[0];
       return first ? first.name.replace(/\s+\d+$/, "") : `Runda ${round.round}`;
+    },
+    groupNameForParticipant(participantId) {
+      const standing = this.standings.find((groupTable) => groupTable.rows.some((row) => row.participant_id === participantId));
+      return standing ? standing.group.name : "Ej lottad";
     },
     async load() {
       this.loading = true;
@@ -406,11 +712,12 @@ const TournamentView = {
     subscribe() {
       if (this.eventSource) this.eventSource.close();
       this.eventSource = new EventSource(`/api/events/${this.id}`);
-      ["participant_added", "resource_added", "result_updated", "schedule_updated", "structure_generated", "bracket_seeded", "settings_updated"].forEach((eventName) => {
+      ["participant_added", "resource_added", "score_updated", "result_updated", "schedule_updated", "structure_generated", "bracket_seeded", "settings_updated"].forEach((eventName) => {
         this.eventSource.addEventListener(eventName, () => this.load());
       });
     },
     async submitForm(path, method, form, message, reset = true) {
+      this.$emit("notice", "Sparar...", "info");
       try {
         await api(path, { method, body: formPayload(form) });
         if (reset) form.reset();
@@ -421,9 +728,25 @@ const TournamentView = {
       }
     },
     async postAction(path, message) {
+      this.$emit("notice", "Jobbar...", "info");
       try {
         await api(path, { method: "POST", body: {} });
         this.$emit("notice", message);
+        await this.load();
+      } catch (error) {
+        this.$emit("error", error);
+      }
+    },
+    async saveMatchScore(event, matchId, complete = false) {
+      const form = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : event.currentTarget.form;
+      if (!form) return;
+      if (!form.reportValidity()) return;
+      this.$emit("notice", complete ? "Avslutar match..." : "Sparar livepoäng...", "info");
+      try {
+        const action = complete ? "result" : "score";
+        await api(`/api/tournaments/${this.id}/matches/${matchId}/${action}`, { method: "POST", body: formPayload(form) });
+        this.$emit("notice", complete ? "Match avslutad." : "Livepoäng sparad.");
+        this.closeScoreDialog();
         await this.load();
       } catch (error) {
         this.$emit("error", error);
@@ -436,26 +759,36 @@ const TournamentView = {
     <template v-else>
       <section class="page-head tournament-title" :data-tournament-id="tournament.id">
         <div>
-          <p class="eyebrow">Översikt</p>
+          <p class="eyebrow">{{ sectionLabels['#' + activeSection] || 'Översikt' }}</p>
           <h1>{{ tournament.name }}</h1>
           <p>{{ formatDate(tournament.starts_at) }} · {{ resources.length }} platser · {{ participants.length }} lag / deltagare</p>
         </div>
         <div class="actions">
           <a class="button subtle" href="#inställningar">Hantera turnering</a>
-          <a class="button primary" :href="'/tv/' + tournament.id">Öppna Live TV</a>
+          <a class="button primary" href="/admin/tv" @click.prevent="$emit('navigate', '/admin/tv')">Hantera Live TV</a>
         </div>
       </section>
 
-      <section class="metric-grid">
+      <nav class="tournament-tabs" aria-label="Turneringsdelar">
+        <a href="#översikt" :class="{ active: activeSection === 'översikt' }"><span>Översikt</span><small>Status</small></a>
+        <a href="#matcher" :class="{ active: activeSection === 'matcher' }"><span>Matcher</span><small>Poäng</small></a>
+        <a href="#deltagare" :class="{ active: activeSection === 'deltagare' }"><span>Deltagare</span><small>Lag</small></a>
+        <a href="#schema" :class="{ active: activeSection === 'schema' }"><span>Schema</span><small>Planer</small></a>
+        <a href="#slutspel" :class="{ active: activeSection === 'slutspel' }"><span>Slutspel</span><small>Bracket</small></a>
+        <a href="#moderatorer" :class="{ active: activeSection === 'moderatorer' }"><span>Moderatorer</span><small>Länkar</small></a>
+        <a href="#inställningar" :class="{ active: activeSection === 'inställningar' }"><span>Inställningar</span><small>Tider</small></a>
+      </nav>
+
+      <section v-if="showSection('översikt')" class="metric-grid">
         <article class="metric-card blue"><span aria-hidden="true"></span><div><small>Totalt deltagare</small><strong>{{ participants.length }}</strong><p>{{ Math.ceil(participants.length / Math.max(tournament.group_count, 1)) || 0 }} per grupp</p></div></article>
         <article class="metric-card green"><span aria-hidden="true"></span><div><small>Aktiva matcher</small><strong>{{ currentMatches.length }}</strong><p>Pågår nu</p></div></article>
         <article class="metric-card amber"><span aria-hidden="true"></span><div><small>Kommande matcher</small><strong>{{ upcomingMatches.length }}</strong><p>Schemalagda</p></div></article>
         <article class="metric-card purple"><span aria-hidden="true"></span><div><small>Avslutade</small><strong>{{ completedMatches.length }}</strong><p>{{ matches.length }} totalt</p></div></article>
       </section>
 
-      <section class="dashboard-layout">
+      <section :class="['dashboard-layout', activeSection !== 'översikt' && activeSection !== 'matcher' && 'single-pane']">
         <div class="dashboard-main">
-          <section class="panel" id="matcher">
+          <section v-if="showSection('översikt') || showSection('matcher')" class="panel" id="matcher">
             <div class="panel-head">
               <div><h2>Aktuella och kommande matcher</h2><p>{{ openMatches.length }} öppna · {{ completedMatches.length }} avslutade</p></div>
               <a href="#alla-matcher">Se alla matcher</a>
@@ -477,9 +810,9 @@ const TournamentView = {
             </table>
           </section>
 
-          <section class="split-panels">
+          <section v-if="showSection('översikt') || showSection('slutspel')" :class="[showSection('slutspel') ? 'section-grid bracket-page' : 'split-panels']">
             <section class="panel" id="slutspel">
-              <div class="panel-head"><h2>Slutspel - översikt</h2></div>
+              <div class="panel-head"><div><h2>Slutspel - översikt</h2><p>{{ knockoutRounds.length ? knockoutRounds.length + ' rundor' : 'Ingen bracket ännu' }}</p></div><button v-if="showSection('slutspel')" class="button subtle" type="button" @click="postAction('/api/tournaments/' + id + '/generate', 'Bracket skapad.')">Generera</button></div>
               <p v-if="!knockoutRounds.length" class="empty">Generera slutspel för att se bracket.</p>
               <div v-else class="bracket-preview">
                 <div v-for="round in knockoutRounds" :key="round.round" class="bracket-round">
@@ -499,33 +832,130 @@ const TournamentView = {
                 </tbody>
               </table>
             </section>
+
+            <section v-if="showSection('slutspel')" class="panel">
+              <div class="panel-head"><h2>Kvalificerade till slutspel</h2><span class="count-pill">{{ qualifiedRows.length }}</span></div>
+              <div class="mini-list qualified-list">
+                <p v-if="!qualifiedRows.length" class="empty">Spela klart gruppspelet eller generera grupper för att se kvalificerade lag.</p>
+                <template v-else>
+                  <article v-for="row in qualifiedRows" :key="row.groupName + '-' + row.participant_id"><div><strong>{{ row.name }}</strong><small>{{ row.groupName }} · plats {{ row.rank }}</small></div><span class="count-pill">{{ row.points }} p</span></article>
+                </template>
+              </div>
+            </section>
+
+            <section v-if="showSection('slutspel')" class="panel quick-panel">
+              <h2>Slutspelsåtgärder</h2>
+              <button class="button ghost" type="button" @click="postAction('/api/tournaments/' + id + '/generate', 'Bracket skapad.')">Bygg om bracket</button>
+              <button class="button ghost" type="button" @click="postAction('/api/tournaments/' + id + '/schedule', 'Schema uppdaterat.')">Schemalägg slutspel</button>
+            </section>
           </section>
 
-          <section class="split-panels">
-            <section class="panel" id="deltagare">
-              <div class="panel-head"><h2>Deltagare</h2><span class="count-pill">{{ participants.length }}</span></div>
-              <form class="inline-form" @submit.prevent="submitForm('/api/tournaments/' + id + '/participants', 'POST', $event.currentTarget, 'Deltagare tillagd.')">
+          <section v-if="showSection('deltagare')" class="section-grid participant-page" id="deltagare">
+            <section class="panel participant-list-panel">
+              <div class="panel-head">
+                <div><h2>Deltagare</h2><p>{{ participantBreakdown.teams }} lag · {{ participantBreakdown.players }} individuella</p></div>
+                <span class="count-pill">{{ participants.length }}</span>
+              </div>
+              <div class="filter-row">
+                <span class="filter-chip active">Alla <strong>{{ participants.length }}</strong></span>
+                <span class="filter-chip">Lag <strong>{{ participantBreakdown.teams }}</strong></span>
+                <span class="filter-chip">Spelare <strong>{{ participantBreakdown.players }}</strong></span>
+                <span class="filter-chip">Seedade <strong>{{ seededCount }}</strong></span>
+              </div>
+              <form class="inline-form action-form" @submit.prevent="submitForm('/api/tournaments/' + id + '/participants', 'POST', $event.currentTarget, 'Deltagare tillagd.')">
                 <input name="name" required placeholder="Lag eller spelare">
                 <select name="kind"><option value="team">Lag</option><option value="player">Spelare</option></select>
                 <input name="seed" type="number" min="1" placeholder="Seed">
-                <button type="submit">Lägg till</button>
+                <button type="submit">Lägg till deltagare</button>
               </form>
-              <table class="admin-table compact-table"><thead><tr><th>Seed</th><th>Namn</th><th>Typ</th></tr></thead><tbody><tr v-if="!participants.length"><td colspan="3">Inga deltagare.</td></tr><template v-else><tr v-for="participant in participants" :key="participant.id"><td>{{ participant.seed || '-' }}</td><td><strong>{{ participant.name }}</strong></td><td>{{ participant.kind }}</td></tr></template></tbody></table>
+              <table class="admin-table compact-table participant-table">
+                <thead><tr><th>Seed</th><th>Namn</th><th>Typ</th><th>Status</th></tr></thead>
+                <tbody>
+                  <tr v-if="!seededParticipants.length"><td colspan="4">Inga deltagare.</td></tr>
+                  <template v-else>
+                    <tr v-for="participant in seededParticipants" :key="participant.id">
+                      <td>{{ participant.seed || '-' }}</td>
+                      <td><span class="avatar-chip">{{ initials(participant.name) }}</span><strong>{{ participant.name }}</strong></td>
+                      <td>{{ participantKindText(participant.kind) }}</td>
+                      <td><span class="status-badge success">Registrerad</span></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
             </section>
 
-            <section class="panel" id="schema">
-              <div class="panel-head"><h2>Spelplaner / servrar</h2><span class="count-pill">{{ resources.length }}</span></div>
-              <form class="inline-form" @submit.prevent="submitForm('/api/tournaments/' + id + '/resources', 'POST', $event.currentTarget, 'Resurs tillagd.')">
-                <input name="name" required placeholder="Plan 1">
-                <select name="kind"><option value="court">Spelplan</option><option value="server">Server</option><option value="table">Bord</option></select>
-                <button type="submit">Lägg till</button>
-              </form>
-              <table class="admin-table compact-table"><thead><tr><th>Namn</th><th>Typ</th><th>Status</th></tr></thead><tbody><tr v-if="!resources.length"><td colspan="3">Inga resurser.</td></tr><template v-else><tr v-for="resource in resources" :key="resource.id"><td><strong>{{ resource.name }}</strong></td><td>{{ resource.kind }}</td><td>{{ resource.active ? 'Aktiv' : 'Pausad' }}</td></tr></template></tbody></table>
-            </section>
+            <aside class="side-stack">
+              <section class="panel detail-panel">
+                <template v-if="selectedParticipant">
+                  <div class="detail-hero"><span class="card-symbol tone-1">{{ initials(selectedParticipant.name) }}</span><div><h2>{{ selectedParticipant.name }}</h2><p>{{ participantKindText(selectedParticipant.kind) }}</p></div></div>
+                  <dl class="detail-list">
+                    <div><dt>Seed</dt><dd>{{ selectedParticipant.seed || '-' }}</dd></div>
+                    <div><dt>Grupp</dt><dd>{{ groupNameForParticipant(selectedParticipant.id) }}</dd></div>
+                    <div><dt>Status</dt><dd><span class="status-badge success">Registrerad</span></dd></div>
+                  </dl>
+                </template>
+                <p v-else class="empty">Lägg till deltagare för att se detaljer.</p>
+              </section>
+              <section class="panel">
+                <h2>Gruppfördelning</h2>
+                <div class="mini-list">
+                  <p v-if="!standings.length" class="empty">Generera gruppspel för att se grupper.</p>
+                  <template v-else>
+                    <article v-for="standing in standings" :key="standing.group.id"><div><strong>{{ standing.group.name }}</strong><small>{{ standing.rows.length }} deltagare</small></div><span class="count-pill">{{ standing.rows.length }}</span></article>
+                  </template>
+                </div>
+              </section>
+            </aside>
           </section>
 
-          <section class="panel" id="alla-matcher">
+          <section v-if="showSection('schema')" class="section-grid schedule-page" id="schema">
+            <section class="panel">
+              <div class="panel-head"><div><h2>Schema</h2><p>{{ resources.length }} resurser · {{ statusCounts.unplaced }} ej placerade matcher</p></div><span class="count-pill">{{ matches.length }}</span></div>
+              <div class="schedule-board">
+                <article v-for="resource in resourcesWithMatches" :key="resource.id" class="resource-column">
+                  <header><strong>{{ resource.name }}</strong><small>{{ resourceKindText(resource.kind) }} · {{ resource.active ? 'Aktiv' : 'Pausad' }}</small></header>
+                  <p v-if="!resource.matches.length" class="empty">Inga matcher placerade.</p>
+                  <template v-else>
+                    <div class="resource-match" v-for="match in resource.matches" :key="match.id">
+                      <strong>{{ match.side_a }} <span>vs</span> {{ match.side_b }}</strong>
+                      <small>{{ match.time_label }} · {{ match.group_name || match.stage_name || match.name }}</small>
+                    </div>
+                  </template>
+                </article>
+                <p v-if="!resources.length" class="empty">Lägg till en spelplan eller server för att bygga schema.</p>
+              </div>
+            </section>
+
+            <aside class="side-stack">
+              <section class="panel">
+                <h2>Ny resurs</h2>
+                <form class="stack" @submit.prevent="submitForm('/api/tournaments/' + id + '/resources', 'POST', $event.currentTarget, 'Resurs tillagd.')">
+                  <label>Namn <input name="name" required placeholder="Plan 1"></label>
+                  <label>Typ <select name="kind"><option value="court">Spelplan</option><option value="server">Server</option><option value="table">Bord</option></select></label>
+                  <button type="submit">Lägg till resurs</button>
+                </form>
+              </section>
+              <section class="panel">
+                <div class="panel-head"><h2>Ej placerade</h2><span class="count-pill">{{ statusCounts.unplaced }}</span></div>
+                <div class="mini-list">
+                  <p v-if="!unplacedMatches.length" class="empty">Alla spelbara matcher har en plats.</p>
+                  <template v-else>
+                    <article v-for="match in unplacedMatches" :key="match.id"><div><strong>{{ match.side_a }} vs {{ match.side_b }}</strong><small>{{ match.group_name || match.stage_name || match.name }}</small></div></article>
+                  </template>
+                </div>
+              </section>
+            </aside>
+          </section>
+
+          <section v-if="showSection('matcher') || showSection('schema')" class="panel" id="alla-matcher">
             <div class="panel-head"><h2>Alla matcher</h2><span class="count-pill">{{ matches.length }}</span></div>
+            <div class="filter-row match-status-row">
+              <span class="filter-chip active">Alla <strong>{{ statusCounts.all }}</strong></span>
+              <span class="filter-chip">Pågår <strong>{{ statusCounts.live }}</strong></span>
+              <span class="filter-chip">Kommande <strong>{{ statusCounts.upcoming }}</strong></span>
+              <span class="filter-chip">Avslutade <strong>{{ statusCounts.done }}</strong></span>
+              <span class="filter-chip">Ej placerade <strong>{{ statusCounts.unplaced }}</strong></span>
+            </div>
             <table class="matches admin-table">
               <thead><tr><th>Match</th><th>Deltagare</th><th>Tid och plats</th><th>Status</th><th>Resultat</th><th>Åtgärder</th></tr></thead>
               <tbody>
@@ -538,18 +968,17 @@ const TournamentView = {
                     <td><status-badge :status="match.status" /></td>
                     <td><strong>{{ match.score_label }}</strong></td>
                     <td>
+                      <div class="row-action-buttons">
+                        <button v-if="canScoreMatch(match)" type="button" class="button subtle" @click="openScoreDialog(match)">{{ match.status === 'completed' ? 'Resultat' : 'Poäng' }}</button>
+                        <span v-else class="form-hint compact">Inväntar lag</span>
+                      </div>
                       <details class="row-actions">
-                        <summary>Ändra</summary>
+                        <summary>Tid</summary>
                         <form class="tiny-form slot-form" @submit.prevent="submitForm('/api/tournaments/' + id + '/matches/' + match.id + '/slot', 'PATCH', $event.currentTarget, 'Match flyttad.')">
                           <input name="scheduled_at" type="datetime-local" :value="match.scheduled_at || tournament.starts_at" required>
                           <select name="resource_id" :value="match.resource_id || ''" required><option value="" disabled>Välj plats</option><option v-for="resource in resources" :key="resource.id" :value="resource.id">{{ resource.name }}</option></select>
                           <input name="duration_minutes" type="number" min="1" :value="match.duration_minutes">
                           <button type="submit">Spara tid</button>
-                        </form>
-                        <form class="score-form result-form" @submit.prevent="submitForm('/api/tournaments/' + id + '/matches/' + match.id + '/result', 'POST', $event.currentTarget, 'Resultat sparat.')">
-                          <input name="score_a" type="number" :value="match.score_a == null ? '' : match.score_a" aria-label="Poäng A">
-                          <input name="score_b" type="number" :value="match.score_b == null ? '' : match.score_b" aria-label="Poäng B">
-                          <button type="submit">Spara resultat</button>
                         </form>
                       </details>
                     </td>
@@ -558,37 +987,108 @@ const TournamentView = {
               </tbody>
             </table>
           </section>
+
+          <section v-if="showSection('inställningar')" class="section-grid settings-page">
+            <form class="settings-grid" id="inställningar" @submit.prevent="submitForm('/api/tournaments/' + id + '/settings', 'PATCH', $event.currentTarget, 'Inställningar sparade.', false)">
+              <section class="panel">
+                <div class="panel-head"><h2>Grundläggande information</h2></div>
+                <label>Start <input name="starts_at" type="datetime-local" :value="tournament.starts_at"></label>
+                <p class="form-hint">Starttiden används som bas när matcher schemaläggs automatiskt.</p>
+              </section>
+              <section class="panel">
+                <div class="panel-head"><h2>Matchinställningar</h2></div>
+                <div class="form-grid two"><label>Matchminuter <input name="match_minutes" type="number" min="1" :value="tournament.match_minutes"></label><label>Vila minuter <input name="break_minutes" type="number" min="0" :value="tournament.break_minutes"></label></div>
+                <p class="form-hint">Längd och vila används både för nytt schema och manuell flytt av matcher.</p>
+              </section>
+              <section class="panel">
+                <div class="panel-head"><h2>Turneringsstruktur</h2></div>
+                <div class="form-grid two"><label>Grupper <input name="group_count" type="number" min="1" :value="tournament.group_count"></label><label>Vidare/grupp <input name="qualifiers_per_group" type="number" min="1" :value="tournament.qualifiers_per_group"></label></div>
+                <p class="form-hint">Ändra detta innan du bygger om gruppspel och slutspel.</p>
+              </section>
+              <section class="panel settings-save">
+                <h2>Spara ändringar</h2>
+                <button type="submit">Spara inställningar</button>
+              </section>
+            </form>
+
+            <aside class="side-stack">
+              <section class="panel quick-panel">
+                <h2>Turneringsåtgärder</h2>
+                <button class="button ghost" type="button" @click="postAction('/api/tournaments/' + id + '/generate', 'Bracket skapad.')">Generera gruppspel och slutspel</button>
+                <button class="button ghost" type="button" @click="postAction('/api/tournaments/' + id + '/schedule', 'Schema uppdaterat.')">Autoschemalägg matcher</button>
+                <a class="button ghost" href="#moderatorer">Skapa moderatorlänk</a>
+              </section>
+              <section class="panel">
+                <h2>Aktuell struktur</h2>
+                <dl class="detail-list">
+                  <div><dt>Grupper</dt><dd>{{ tournament.group_count }}</dd></div>
+                  <div><dt>Vidare/grupp</dt><dd>{{ tournament.qualifiers_per_group }}</dd></div>
+                  <div><dt>Matcher</dt><dd>{{ matches.length }}</dd></div>
+                </dl>
+              </section>
+            </aside>
+          </section>
+
+          <section v-if="showSection('moderatorer')" class="section-grid moderator-admin-page">
+            <section class="panel" id="moderatorer">
+              <div class="panel-head"><div><h2>Skapa moderatorlänk</h2><p>{{ resources.length }} resurser kan begränsas</p></div><span class="count-pill">{{ moderators.length }} aktiva</span></div>
+              <form class="inline-form moderator-create-form" @submit.prevent="submitForm('/api/tournaments/' + id + '/moderators', 'POST', $event.currentTarget, 'Moderatorlänk skapad.')">
+                <label>Etikett <input name="label" required placeholder="Moderator plan 1"></label>
+                <label>Scope <select name="resource_id"><option value="">Alla resurser</option><option v-for="resource in resources" :key="resource.id" :value="resource.id">{{ resource.name }}</option></select></label>
+                <button type="submit">Skapa länk</button>
+              </form>
+            </section>
+
+            <section class="panel moderator-links-panel">
+              <div class="panel-head"><h2>Moderatorlänkar</h2><span class="count-pill">{{ moderators.length }}</span></div>
+              <table class="admin-table compact-table">
+                <thead><tr><th>Etikett</th><th>Scope</th><th>PIN</th><th>Status</th><th>Länk</th></tr></thead>
+                <tbody>
+                  <tr v-if="!moderators.length"><td colspan="5">Inga moderatorer ännu.</td></tr>
+                  <template v-else>
+                    <tr v-for="moderator in moderators" :key="moderator.id">
+                      <td><strong>{{ moderator.label }}</strong></td>
+                      <td>{{ moderator.resource_name || 'Alla resurser' }}</td>
+                      <td><code>{{ moderator.pin }}</code></td>
+                      <td><span class="status-badge success">Aktiv</span></td>
+                      <td><a :href="'/m/' + moderator.token">Öppna</a></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </section>
+
+            <aside class="side-stack">
+              <section class="panel share-card">
+                <h2>Dela med moderator</h2>
+                <template v-if="moderators[0]">
+                  <div class="share-link"><span>/m/{{ moderators[0].token }}</span><a :href="'/m/' + moderators[0].token">Öppna</a></div>
+                  <div class="qr-placeholder" aria-hidden="true"><span>T</span></div>
+                  <p>{{ moderators[0].label }}</p>
+                </template>
+                <p v-else class="empty">Skapa en länk för att visa delning.</p>
+              </section>
+              <section class="panel">
+                <h2>Senaste aktivitet</h2>
+                <div class="activity-list">
+                  <article><span class="activity-icon green"></span><div><strong>{{ participants.length }} deltagare registrerade</strong><small>Aktuell deltagarlista</small></div></article>
+                  <p v-if="!events.length" class="empty">Inga händelser ännu.</p>
+                  <template v-else><article v-for="event in events.slice(0, 5)" :key="event.id"><span class="activity-icon blue"></span><div><strong>{{ eventText[event.kind] || event.kind }}</strong><small>{{ formatTime(event.created_at) }}</small></div></article></template>
+                </div>
+              </section>
+            </aside>
+          </section>
         </div>
 
-        <aside class="dashboard-side">
-          <section class="panel quick-panel">
+        <aside v-if="showSection('översikt') || showSection('matcher')" class="dashboard-side">
+          <section v-if="showSection('översikt') || showSection('matcher')" class="panel quick-panel">
             <h2>Snabbåtgärder</h2>
             <button class="button ghost" type="button" @click="postAction('/api/tournaments/' + id + '/generate', 'Bracket skapad.')">Generera gruppspel och slutspel</button>
             <button class="button ghost" type="button" @click="postAction('/api/tournaments/' + id + '/schedule', 'Schema uppdaterat.')">Autoschemalägg matcher</button>
-            <a class="button ghost" :href="'/tv/' + tournament.id">Öppna Live TV</a>
+            <a class="button ghost" href="/admin/tv" @click.prevent="$emit('navigate', '/admin/tv')">Hantera Live TV</a>
           </section>
 
-          <section class="panel" id="inställningar">
-            <h2>Inställningar</h2>
-            <form class="stack" @submit.prevent="submitForm('/api/tournaments/' + id + '/settings', 'PATCH', $event.currentTarget, 'Inställningar sparade.', false)">
-              <label>Start <input name="starts_at" type="datetime-local" :value="tournament.starts_at"></label>
-              <div class="form-grid two"><label>Matchminuter <input name="match_minutes" type="number" min="1" :value="tournament.match_minutes"></label><label>Vila minuter <input name="break_minutes" type="number" min="0" :value="tournament.break_minutes"></label></div>
-              <div class="form-grid two"><label>Grupper <input name="group_count" type="number" min="1" :value="tournament.group_count"></label><label>Vidare/grupp <input name="qualifiers_per_group" type="number" min="1" :value="tournament.qualifiers_per_group"></label></div>
-              <button type="submit">Spara</button>
-            </form>
-          </section>
-
-          <section class="panel" id="moderatorer">
-            <h2>Moderatorer</h2>
-            <form class="stack" @submit.prevent="submitForm('/api/tournaments/' + id + '/moderators', 'POST', $event.currentTarget, 'Moderatorlänk skapad.')">
-              <label>Etikett <input name="label" required placeholder="Moderator plan 1"></label>
-              <label>Scope <select name="resource_id"><option value="">Alla resurser</option><option v-for="resource in resources" :key="resource.id" :value="resource.id">{{ resource.name }}</option></select></label>
-              <button type="submit">Skapa länk</button>
-            </form>
-            <div class="mini-list"><p v-if="!moderators.length" class="empty">Inga moderatorer ännu.</p><template v-else><article v-for="moderator in moderators" :key="moderator.id"><div><strong>{{ moderator.label }}</strong><small>{{ moderator.resource_name || 'Alla resurser' }} · PIN {{ moderator.pin }}</small></div><a :href="'/m/' + moderator.token">Öppna</a></article></template></div>
-          </section>
-
-          <section class="panel">
+          <section v-if="showSection('översikt')" class="panel">
             <h2>Senaste aktivitet</h2>
             <div class="activity-list">
               <article><span class="activity-icon green"></span><div><strong>{{ participants.length }} deltagare registrerade</strong><small>Aktuell deltagarlista</small></div></article>
@@ -598,16 +1098,54 @@ const TournamentView = {
           </section>
         </aside>
       </section>
+
+      <div v-if="scoreDialog" class="modal-backdrop" @click.self="closeScoreDialog">
+        <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="score-dialog-title">
+          <div class="modal-head">
+            <div>
+              <p class="eyebrow">{{ scoreDialog.group_name || scoreDialog.stage_name || scoreDialog.name }}</p>
+              <h2 id="score-dialog-title">Rapportera poäng</h2>
+            </div>
+            <button type="button" class="icon-button" aria-label="Stäng" @click="closeScoreDialog">×</button>
+          </div>
+          <div class="score-matchup">
+            <strong>{{ scoreDialog.side_a }}</strong>
+            <span>vs</span>
+            <strong>{{ scoreDialog.side_b }}</strong>
+          </div>
+          <form class="score-dialog-form" @submit.prevent="saveMatchScore($event, scoreDialog.id, false)">
+            <label>{{ scoreDialog.side_a }} <input name="score_a" type="number" min="0" required placeholder="0" :value="scoreDialog.score_a == null ? '' : scoreDialog.score_a" aria-label="Poäng A"></label>
+            <label>{{ scoreDialog.side_b }} <input name="score_b" type="number" min="0" required placeholder="0" :value="scoreDialog.score_b == null ? '' : scoreDialog.score_b" aria-label="Poäng B"></label>
+            <div class="modal-actions">
+              <button type="submit" :disabled="scoreDialog.status === 'completed'">Spara livepoäng</button>
+              <button type="button" class="button primary" @click="saveMatchScore($event, scoreDialog.id, true)">Avsluta match</button>
+              <button type="button" class="button subtle" @click="closeScoreDialog">Avbryt</button>
+            </div>
+          </form>
+        </section>
+      </div>
     </template>
   `,
 };
 
 const ModeratorView = {
-  components: { NoticeBox },
+  components: { NoticeBox, StatusBadge },
   props: ["token", "notice"],
   emits: ["notice", "error", "clear"],
   data() {
     return { data: null, eventSource: null };
+  },
+  computed: {
+    moderatorMatches() {
+      return this.data ? this.data.matches || [] : [];
+    },
+    moderatorCounts() {
+      return {
+        all: this.moderatorMatches.length,
+        live: this.moderatorMatches.filter((match) => match.status === "in_progress").length,
+        upcoming: this.moderatorMatches.filter((match) => match.status !== "in_progress").length,
+      };
+    },
   },
   mounted() {
     this.load();
@@ -628,7 +1166,7 @@ const ModeratorView = {
       if (!this.data || !this.data.authorized) return;
       if (this.eventSource) this.eventSource.close();
       this.eventSource = new EventSource(`/api/events/${this.data.moderator.tournament_id}`);
-      ["result_updated", "schedule_updated", "structure_generated", "bracket_seeded", "settings_updated"].forEach((eventName) => {
+      ["score_updated", "result_updated", "schedule_updated", "structure_generated", "bracket_seeded", "settings_updated"].forEach((eventName) => {
         this.eventSource.addEventListener(eventName, () => this.load());
       });
     },
@@ -641,10 +1179,15 @@ const ModeratorView = {
         this.$emit("error", error);
       }
     },
-    async saveResult(event, matchId) {
+    async saveScore(event, matchId, complete = false) {
+      const form = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : event.currentTarget.form;
+      if (!form) return;
+      if (!form.reportValidity()) return;
+      this.$emit("notice", complete ? "Avslutar match..." : "Sparar livepoäng...", "info");
       try {
-        await api(`/api/moderators/${this.token}/matches/${matchId}/result`, { method: "POST", body: formPayload(event.currentTarget) });
-        this.$emit("notice", "Resultat sparat.");
+        const action = complete ? "result" : "score";
+        await api(`/api/moderators/${this.token}/matches/${matchId}/${action}`, { method: "POST", body: formPayload(form) });
+        this.$emit("notice", complete ? "Match avslutad." : "Livepoäng sparad.");
         await this.load();
       } catch (error) {
         this.$emit("error", error);
@@ -656,21 +1199,42 @@ const ModeratorView = {
       <notice-box :notice="notice" @clear="$emit('clear')" />
       <section v-if="!data" class="panel">Laddar moderatorvy...</section>
       <template v-else>
-        <section class="page-head" :data-tournament-id="data.moderator.tournament_id"><div><p class="eyebrow">Moderator</p><h1>{{ data.moderator.label }}</h1><p>{{ data.moderator.tournament_name }} · {{ data.moderator.resource_name || 'Alla resurser' }}</p></div></section>
-        <section v-if="data.authorized" class="panel">
-          <div class="panel-head"><h2>Rapportera resultat</h2><span class="count-pill">{{ data.matches.length }}</span></div>
-          <table class="admin-table">
-            <thead><tr><th>Tid</th><th>Resurs</th><th>Match</th><th>Resultat</th></tr></thead>
-            <tbody>
-              <tr v-if="!data.matches.length"><td colspan="4">Inga öppna matcher i ditt scope.</td></tr>
-              <template v-else>
-                <tr v-for="match in data.matches" :key="match.id">
-                  <td>{{ match.time_label }}</td><td>{{ match.resource_name || '-' }}</td><td><strong>{{ match.side_a }}</strong><span class="vs">vs</span><strong>{{ match.side_b }}</strong></td>
-                  <td><form class="score-form moderator-result-form" @submit.prevent="saveResult($event, match.id)"><input name="score_a" type="number" required aria-label="Poäng A"><input name="score_b" type="number" required aria-label="Poäng B"><button type="submit">Spara</button></form></td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
+        <section class="page-head" :data-tournament-id="data.moderator.tournament_id"><div><p class="eyebrow">Moderator</p><h1>{{ data.moderator.label }}</h1><p>{{ data.moderator.tournament_name }} · {{ data.moderator.resource_name || 'Alla resurser' }}</p></div><button v-if="data.authorized" type="button" class="button subtle" @click="load">Uppdatera</button></section>
+        <section v-if="data.authorized" class="moderator-shell">
+          <aside class="panel moderator-side-card">
+            <h2>Moderator-PIN</h2>
+            <span class="status-badge success">Aktiv</span>
+            <dl class="detail-list">
+              <div><dt>Inloggad som</dt><dd>{{ data.moderator.label }}</dd></div>
+              <div><dt>Scope</dt><dd>{{ data.moderator.resource_name || 'Alla resurser' }}</dd></div>
+              <div><dt>Matcher</dt><dd>{{ moderatorCounts.all }}</dd></div>
+            </dl>
+          </aside>
+
+          <section class="moderator-main">
+            <div class="filter-row">
+              <span class="filter-chip active">Alla matcher <strong>{{ moderatorCounts.all }}</strong></span>
+              <span class="filter-chip">Pågår <strong>{{ moderatorCounts.live }}</strong></span>
+              <span class="filter-chip">Kommande <strong>{{ moderatorCounts.upcoming }}</strong></span>
+            </div>
+            <p v-if="!moderatorMatches.length" class="panel empty">Inga öppna matcher i ditt scope.</p>
+            <article v-for="(match, index) in moderatorMatches" :key="match.id" :class="['panel', 'moderator-match-card', index === 0 && 'expanded']">
+              <header>
+                <div><strong>{{ match.time_label }}</strong><small>{{ match.resource_name || '-' }}</small></div>
+                <div class="moderator-match-title"><strong>{{ match.side_a }}</strong><span class="vs">vs</span><strong>{{ match.side_b }}</strong><small>{{ match.group_name || match.stage_name || match.name }}</small></div>
+                <status-badge :status="match.status" />
+              </header>
+              <form class="moderator-score-card" @submit.prevent="saveScore($event, match.id, false)">
+                <label>{{ match.side_a }} <input name="score_a" type="number" min="0" required placeholder="0" :value="match.score_a == null ? '' : match.score_a" aria-label="Poäng A"></label>
+                <span class="score-separator">-</span>
+                <label>{{ match.side_b }} <input name="score_b" type="number" min="0" required placeholder="0" :value="match.score_b == null ? '' : match.score_b" aria-label="Poäng B"></label>
+                <div class="modal-actions">
+                  <button type="submit">Spara livepoäng</button>
+                  <button type="button" class="button subtle danger-action" @click="saveScore($event, match.id, true)">Avsluta match</button>
+                </div>
+              </form>
+            </article>
+          </section>
         </section>
         <section v-else class="panel narrow"><h2>Moderator-PIN</h2><form class="stack" @submit.prevent="login"><label>PIN <input name="pin" type="password" required autofocus></label><button type="submit">Öppna</button></form></section>
       </template>
@@ -679,16 +1243,18 @@ const ModeratorView = {
 };
 
 createApp({
-  components: { AdminShell, AdminHome, LoginView, ModeratorView, NoticeBox, StatusBadge, TournamentView },
+  components: { AdminShell, AdminHome, LiveTvAdmin, LoginView, ModeratorView, NoticeBox, StatusBadge, TournamentView },
   data() {
-    return { session: null, route: location.pathname, notice: null };
+    return { session: null, route: location.pathname, routeHash: normalizedHash(), notice: null };
   },
   computed: {
     tournamentId() {
       return this.route.startsWith("/tournaments/") ? this.route.split("/")[2] : null;
     },
     activeNav() {
-      return this.tournamentId ? "Översikt" : "Turneringar";
+      if (this.route === "/admin/tv") return "Live TV";
+      if (!this.tournamentId) return "Turneringar";
+      return sectionLabels[this.routeHash] || "Översikt";
     },
   },
   watch: {
@@ -702,13 +1268,19 @@ createApp({
   mounted() {
     this.refreshSession();
     window.addEventListener("popstate", this.onPopState);
+    window.addEventListener("hashchange", this.onHashChange);
   },
   beforeUnmount() {
     window.removeEventListener("popstate", this.onPopState);
+    window.removeEventListener("hashchange", this.onHashChange);
   },
   methods: {
     onPopState() {
       this.route = location.pathname;
+      this.routeHash = normalizedHash();
+    },
+    onHashChange() {
+      this.routeHash = normalizedHash();
     },
     async refreshSession() {
       try {
@@ -721,6 +1293,7 @@ createApp({
       if (path === location.pathname) return;
       history.pushState({}, "", path);
       this.route = path;
+      this.routeHash = normalizedHash();
       this.notice = null;
     },
     showNotice(message, type = "success") {
@@ -733,10 +1306,11 @@ createApp({
       this.notice = null;
     },
     async login(event) {
+      const target = this.route && !["/", "/login"].includes(this.route) ? this.route : "/admin";
       try {
         await api("/api/admin/login", { method: "POST", body: formPayload(event.currentTarget) });
         await this.refreshSession();
-        this.navigate("/admin");
+        this.navigate(target);
       } catch (error) {
         this.showError(error);
       }
@@ -756,7 +1330,8 @@ createApp({
     <moderator-view v-else-if="route.startsWith('/m/')" :token="route.split('/')[2]" :notice="notice" @notice="showNotice" @error="showError" @clear="clearNotice" />
     <login-view v-else-if="!session.is_admin" :notice="notice" @login="login" @clear="clearNotice" />
     <admin-shell v-else :active="activeNav" :tournament-id="tournamentId" :notice="notice" @navigate="navigate" @logout="logout" @notice="showNotice" @clear="clearNotice">
-      <tournament-view v-if="tournamentId" :id="tournamentId" @notice="showNotice" @error="showError" />
+      <live-tv-admin v-if="route === '/admin/tv'" @notice="showNotice" @error="showError" />
+      <tournament-view v-else-if="tournamentId" :id="tournamentId" @navigate="navigate" @notice="showNotice" @error="showError" />
       <admin-home v-else @navigate="navigate" @notice="showNotice" @error="showError" />
     </admin-shell>
   `,

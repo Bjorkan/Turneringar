@@ -8,7 +8,9 @@ Bygg en robust lokal eventserver för turneringar. Prioritera tydliga arbetsflö
 
 - Följ inspirationsbilderna i `inspiration/` som visuell målbild.
 - Adminappen ska kännas som ett ljust, operativt verktyg med fast vänsternavigering, toppbar, filterrader, täta tabeller, sidopaneler och tydliga statusmärken.
-- Live TV ska vara en mörk publikvy med hög kontrast, blå/gröna accentfärger, stora matchytor, tunna panelramar, slideindikator och snabb överblick över aktuellt schema, tabeller, slutspel, resultat och notiser.
+- Live TV ska vara en mörk publikvy med hög kontrast, blå/gröna accentfärger, stora matchytor, tunna panelramar, slideindikator och snabb överblick över aktuellt schema, tabeller, slutspel och resultat.
+- Live TV-länkar är instansnivåobjekt, inte turneringsobjekt. Admin skapar en 10 tecken lång kod under `/admin/tv`, publik länk är `/tv/{CODE}`, och länken kan bindas live till en turnering eller en specifik resurs. Obundna TV-länkar ska visa "Ansluten, väntar på information".
+- Publik Live TV får inte visa interna arrangörsdelar som regler, notiser, moderatorinformation eller hitta-rätt-i-arenan-information.
 - Prioritera scanbarhet och arbetsflöden framför dekorativa sektioner. Första skärmen ska alltid visa användbar turneringsinformation.
 - Använd kort med små radier, återhållsamma skuggor, stabila gridmått och kompakta kontroller. Text ska rymmas i sina ytor på både desktop och mobil.
 
@@ -19,6 +21,7 @@ Bygg en robust lokal eventserver för turneringar. Prioritera tydliga arbetsflö
 - Lägg databasåtkomst i `backend/turneringar/store.py`; använd parametriserade SQLite-frågor.
 - Ändra schema via nya filer i `backend/migrations/`; modifiera inte redan tillämpade migrationer efter release.
 - Frontend ska kommunicera med backend via `/api/...` och inte serverrenderas med templates.
+- Live TV-klienten ska läsa via `/api/tv/{CODE}` och prenumerera på `/api/tv/{CODE}/events`; gamla turnerings-ID-baserade TV-rutter får bara finnas för bakåtkompatibilitet.
 - Frontend skrivs i TypeScript under `frontend/src/`, byggs med `npm run build:frontend` och levereras som statiska filer under `frontend/static/`.
 - Använd lokalt vendrad Vue 3-runtime från `frontend/static/vendor/vue.global.prod.js`; hämta inte Vue från CDN i produktion.
 - Realtidsuppdateringar ska gå genom `backend/turneringar/realtime.py` och Server-Sent Events.

@@ -1,6 +1,6 @@
 {
 const { createApp } = Vue;
-const tournamentId = location.pathname.split("/").pop();
+const tvCode = location.pathname.split("/").pop();
 const slideSeconds = 10;
 
 type DateValue = string | number | Date | null | undefined;
@@ -12,13 +12,23 @@ const eventText = {
   structure_generated: "Slutspel publicerat",
   bracket_seeded: "Slutspel seedat",
   schedule_updated: "Schema uppdaterat",
+  score_updated: "Livepoäng uppdaterad",
   result_updated: "Resultat rapporterat",
+};
+
+const statusText = {
+  pending: "Planerad",
+  scheduled: "Planerad",
+  in_progress: "Pågår",
+  paused: "Paus",
+  completed: "Avslutad",
 };
 
 const api = async (path) => {
   const response = await fetch(path, { credentials: "include" });
-  if (!response.ok) throw new Error("Kunde inte läsa TV-data.");
-  return response.json();
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.detail || "Kunde inte läsa TV-data.");
+  return payload;
 };
 
 const parseDate = (value: DateValue) => {
@@ -33,6 +43,14 @@ const formatDate = (value: DateValue) => {
 };
 
 const formatClock = (date) => new Intl.DateTimeFormat("sv-SE", { hour: "2-digit", minute: "2-digit" }).format(date);
+
+const initials = (name) =>
+  String(name || "T")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => (part[0] || "").toUpperCase())
+    .join("") || "T";
 
 const sortBySchedule = (matches) =>
   [...matches].sort((a, b) => {
@@ -62,6 +80,12 @@ createApp({
     },
     tournament() {
       return this.data && this.data.tournament;
+    },
+    tvLink() {
+      return this.data && this.data.tv_link;
+    },
+    isBound() {
+      return Boolean(this.data && this.data.bound);
     },
     matches() {
       return this.data ? this.data.matches || [] : [];
@@ -108,7 +132,7 @@ createApp({
     },
     knockoutRounds() {
       const knockout = this.matches.filter((match) => match.stage_kind === "knockout");
-      return [...new Set(knockout.map((match) => Number(match.round)))]
+      return [...new Set<number>(knockout.map((match) => Number(match.round)))]
         .sort((a, b) => a - b)
         .map((round) => ({ round, matches: knockout.filter((match) => Number(match.round) === round) }));
     },
@@ -127,8 +151,12 @@ createApp({
     formatDate,
     formatClock,
     parseDate,
+    initials,
     eventLabel(kind) {
       return eventText[kind] || kind;
+    },
+    statusLabel(status) {
+      return statusText[status] || status || "Planerad";
     },
     roundTitle(round) {
       const first = round.matches[0];
@@ -136,8 +164,8 @@ createApp({
     },
     async load() {
       try {
-        const payload = await api(`/api/tournaments/${tournamentId}/tv`);
-        document.title = `Live TV - ${payload.tournament.name}`;
+        const payload = await api(`/api/tv/${tvCode}`);
+        document.title = payload.bound ? `Live TV - ${payload.tournament.name}` : `Live TV - ${payload.tv_link.code}`;
         this.data = payload;
         this.error = null;
         this.activeIndex = 0;
@@ -158,7 +186,7 @@ createApp({
       }, 1000);
     },
     subscribe() {
-      this.eventSource = new EventSource(`/api/events/${tournamentId}`);
+      this.eventSource = new EventSource(`/api/tv/${tvCode}/events`);
       const refresh = () => {
         if (this.reloadTimer) return;
         this.reloadTimer = setTimeout(() => {
@@ -166,7 +194,7 @@ createApp({
           this.load();
         }, 800);
       };
-      ["participant_added", "resource_added", "result_updated", "schedule_updated", "structure_generated", "bracket_seeded", "settings_updated"].forEach((eventName) => {
+      ["participant_added", "resource_added", "score_updated", "result_updated", "schedule_updated", "structure_generated", "bracket_seeded", "settings_updated", "tv_link_updated"].forEach((eventName) => {
         this.eventSource.addEventListener(eventName, refresh);
       });
     },
@@ -174,6 +202,14 @@ createApp({
   template: `
     <section v-if="error" class="tv-slide active"><h1>{{ error.message }}</h1></section>
     <section v-else-if="!data" class="tv-slide active"><h1>Laddar Live TV...</h1></section>
+    <section v-else-if="!isBound" class="tv-waiting">
+      <div class="tv-waiting-card">
+        <div class="tv-brand"><span aria-hidden="true">T</span><strong>Live TV</strong></div>
+        <h1>{{ data.message }}</h1>
+        <p>{{ tvLink.label }} · {{ tvLink.code }}</p>
+        <div class="tv-pulse" aria-hidden="true"><span></span><span></span><span></span></div>
+      </div>
+    </section>
     <template v-else>
       <header class="tv-topbar">
         <div class="tv-brand"><span aria-hidden="true">T</span><strong>Live TV</strong></div>
@@ -189,33 +225,34 @@ createApp({
             <section class="tv-panel tv-feature">
               <template v-if="featuredMatch">
                 <div class="feature-head"><h2>{{ featuredLabel }}</h2><span class="live-pill">{{ featuredPill }}</span></div>
-                <div class="feature-match"><strong>{{ featuredMatch.side_a }}</strong><span>vs</span><strong>{{ featuredMatch.side_b }}</strong></div>
+                <div class="feature-match">
+                  <div class="team-block team-a"><span>{{ initials(featuredMatch.side_a) }}</span><strong>{{ featuredMatch.side_a }}</strong></div>
+                  <div class="score-stack"><small>{{ featuredMatch.time_label }} · {{ featuredMatch.group_name || featuredMatch.stage_name || '-' }}</small><strong>{{ featuredMatch.score_label }}</strong><em>{{ statusLabel(featuredMatch.status) }}</em></div>
+                  <div class="team-block team-b"><span>{{ initials(featuredMatch.side_b) }}</span><strong>{{ featuredMatch.side_b }}</strong></div>
+                </div>
                 <dl class="feature-facts">
                   <div><dt>Start</dt><dd>{{ featuredMatch.time_label }}</dd></div>
-                  <div><dt>Plats</dt><dd>{{ featuredMatch.resource_name || 'Ej placerad' }}</dd></div>
                   <div><dt>Grupp</dt><dd>{{ featuredMatch.group_name || featuredMatch.stage_name || '-' }}</dd></div>
+                  <div><dt>Status</dt><dd>{{ statusLabel(featuredMatch.status) }}</dd></div>
                 </dl>
-                <div class="feature-score"><small>Resultat</small><strong>{{ featuredMatch.score_label }}</strong></div>
               </template>
               <h1 v-else>Inga matcher publicerade</h1>
             </section>
 
-            <section class="tv-panel">
+            <section class="tv-panel tv-up-next">
               <h2>Härnäst</h2>
               <div class="tv-table">
-                <div class="tv-row tv-head"><span>Tid</span><span>Match</span><span>Plats</span></div>
+                <div class="tv-row tv-head"><span>Tid</span><span>Match</span><span>Grupp</span></div>
                 <div v-if="!visibleUpcoming.length" class="tv-row"><span></span><strong>Inga kommande matcher</strong><span></span></div>
-                <template v-else><div v-for="match in visibleUpcoming" :key="match.id" class="tv-row"><strong>{{ match.time_label }}</strong><span>{{ match.side_a }} <em>vs</em> {{ match.side_b }}</span><span>{{ match.resource_name || '-' }}</span></div></template>
+                <template v-else><div v-for="match in visibleUpcoming" :key="match.id" class="tv-row"><strong>{{ match.time_label }}</strong><span>{{ match.side_a }} <em>vs</em> {{ match.side_b }}</span><span>{{ match.group_name || match.stage_name || '-' }}</span></div></template>
               </div>
             </section>
 
-            <section class="tv-info-card award"><small>Prisutdelning</small><strong>Efter final</strong><span>{{ tournament.name }}</span></section>
-            <section class="tv-info-card"><small>Information</small><strong>Håll koll på uppdateringar</strong><span>Schema och resultat uppdateras automatiskt.</span></section>
-            <section class="tv-panel tv-map">
-              <h2>Hitta rätt i arenan</h2>
-              <div class="arena-guide">
-                <div class="arena-legend"><span v-if="!visibleResources.length">Inga platser ännu</span><template v-else><span v-for="(resource, index) in visibleResources" :key="resource.id"><i :class="'arena-color c' + (index + 1)"></i>{{ resource.name }}</span></template></div>
-                <div class="arena-map" aria-hidden="true"><div v-for="(resource, index) in visibleResources" :key="resource.id" :class="'arena-zone c' + (index + 1)">{{ index + 1 }}</div></div>
+            <section class="tv-panel tv-results">
+              <h2>Senaste resultat</h2>
+              <div class="tv-table result-table">
+                <div v-if="!recentMatches.length" class="tv-row"><strong>Inga resultat rapporterade ännu.</strong></div>
+                <template v-else><div v-for="match in recentMatches" :key="match.id" class="tv-row"><span>{{ match.time_label }}</span><strong>{{ match.side_a }} <em>vs</em> {{ match.side_b }}</strong><span>{{ match.score_label }}</span></div></template>
               </div>
             </section>
           </div>
@@ -244,8 +281,6 @@ createApp({
                 <div v-for="round in knockoutRounds" :key="round.round" class="tv-bracket-round"><h3>{{ roundTitle(round) }}</h3><article v-for="match in round.matches" :key="match.id"><span>{{ match.side_a }}</span><span>{{ match.side_b }}</span></article></div>
               </div>
             </section>
-
-            <section class="tv-panel tv-rules"><h2>Regler och avgörande</h2><h3>Poängsystem</h3><p>Vinst: 3 poäng</p><p>Oavgjort: 1 poäng</p><p>Förlust: 0 poäng</p><h3>Vid lika poäng</h3><ol><li>Inbördes möte</li><li>Differens</li><li>Flest gjorda mål</li><li>Lottning</li></ol></section>
           </div>
         </section>
 
@@ -254,14 +289,13 @@ createApp({
             <section class="tv-panel tv-schedule">
               <h2>Dagens schema</h2>
               <div class="tv-table schedule-table">
-                <div class="tv-row tv-head"><span>Tid</span><span>Match</span><span>Grupp / omgång</span><span>Plats</span></div>
+                <div class="tv-row tv-head"><span>Tid</span><span>Match</span><span>Grupp / omgång</span><span>Status</span></div>
                 <div v-if="!scheduleMatches.length" class="tv-row"><span></span><strong>Inga matcher i schemat</strong><span></span><span></span></div>
-                <template v-else><div v-for="match in scheduleMatches" :key="match.id" class="tv-row"><strong>{{ match.time_label }}</strong><span>{{ match.side_a }} <em>vs</em> {{ match.side_b }}</span><span>{{ match.group_name || match.stage_name || match.name }}</span><span>{{ match.resource_name || '-' }}</span></div></template>
+                <template v-else><div v-for="match in scheduleMatches" :key="match.id" class="tv-row"><strong>{{ match.time_label }}</strong><span>{{ match.side_a }} <em>vs</em> {{ match.side_b }}</span><span>{{ match.group_name || match.stage_name || match.name }}</span><span>{{ statusLabel(match.status) }}</span></div></template>
               </div>
             </section>
 
             <section class="tv-panel"><h2>Senaste resultat</h2><div class="tv-table result-table"><div v-if="!recentMatches.length" class="tv-row"><strong>Inga resultat rapporterade ännu.</strong></div><template v-else><div v-for="match in recentMatches" :key="match.id" class="tv-row"><span>{{ match.time_label }}</span><strong>{{ match.side_a }} <em>vs</em> {{ match.side_b }}</strong><span>{{ match.score_label }}</span></div></template></div></section>
-            <section class="tv-panel"><h2>Notiser</h2><div class="tv-notices"><article v-for="event in events.slice(0, 4)" :key="event.id"><span class="notice-dot"></span><div><strong>{{ eventLabel(event.kind) }}</strong><small>{{ formatClock(parseDate(event.created_at) || new Date()) }}</small></div></article><article><span class="notice-dot purple"></span><div><strong>Nästa publicering</strong><small>Automatisk uppdatering om ca {{ slideSeconds }} sekunder.</small></div></article></div></section>
           </div>
         </section>
       </div>

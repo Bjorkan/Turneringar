@@ -12,6 +12,7 @@
 - [x] Skapa PIN-baserade moderatorlänkar.
 - [x] Uppdatera resultat och propagera vinnare i slutspel.
 - [x] Visa Live TV med roterande slides.
+- [x] Skapa instansnivåbaserade Live TV-länkar med 10-teckenskod och live-bindning mot turnering/resurs.
 - [x] Publicera schema- och resultatändringar via SSE.
 - [x] Separera backend och frontend.
 - [x] Låt frontend kommunicera med backend via JSON API och SSE.
@@ -26,6 +27,7 @@
 - [x] Lägg till API-integrationstester för admin-, moderator- och TV-flöden.
 - [x] Lägg till frontendtester som kör riktiga klickflöden i browser.
 - [x] Lägg till tydligare adminnavigation per flik.
+- [x] Flytta Live TV-hantering till en egen global adminsida.
 - [ ] Skapa import/export för deltagare via CSV.
 - [ ] Hantera BYE automatiskt i slutspel.
 - [ ] Gör Live TV-teman konfigurerbara.

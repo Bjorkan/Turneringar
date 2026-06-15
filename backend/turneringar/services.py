@@ -332,6 +332,10 @@ def apply_result(row: dict, scored: int, conceded: int) -> None:
         row["losses"] += 1
 
 
+def match_is_playable(match: dict) -> bool:
+    return bool(match["participant_a_id"] and match["participant_b_id"])
+
+
 def schedule_matches(conn: sqlite3.Connection, tournament_id: int) -> None:
     tournament = store.get_tournament(conn, tournament_id)
     if not tournament:
@@ -349,7 +353,12 @@ def schedule_matches(conn: sqlite3.Connection, tournament_id: int) -> None:
     matches = store.list_matches(conn, tournament_id)
     with conn:
         for match in matches:
-            if match["status"] == "completed" and match["scheduled_at"] and match["resource_id"]:
+            is_fixed = (
+                match["status"] in {"completed", "in_progress"}
+                and match["scheduled_at"]
+                and match["resource_id"]
+            )
+            if is_fixed:
                 end_at = parse_local_datetime(match["scheduled_at"]) + duration + break_time
                 resource_available[match["resource_id"]] = max(
                     resource_available[match["resource_id"]],
@@ -363,7 +372,25 @@ def schedule_matches(conn: sqlite3.Connection, tournament_id: int) -> None:
                         )
 
         for match in matches:
-            if match["status"] == "completed":
+            is_fixed = (
+                match["status"] in {"completed", "in_progress"}
+                and match["scheduled_at"]
+                and match["resource_id"]
+            )
+            if is_fixed:
+                continue
+            if not match_is_playable(match):
+                if match["scheduled_at"] or match["resource_id"]:
+                    conn.execute(
+                        """
+                        UPDATE matches
+                        SET resource_id = NULL, scheduled_at = NULL,
+                            status = CASE WHEN status = 'scheduled' THEN 'pending' ELSE status END,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                        """,
+                        (match["id"],),
+                    )
                 continue
             earliest = start_at
             for participant_id in (match["participant_a_id"], match["participant_b_id"]):
@@ -411,6 +438,8 @@ def validate_manual_slot(
     match = store.get_match(conn, match_id)
     if not match:
         return ["Matchen finns inte."]
+    if not match_is_playable(match):
+        return ["Matchen saknar deltagare och kan inte schemaläggas."]
     start = parse_local_datetime(scheduled_at)
     end = start + timedelta(minutes=duration_minutes)
     errors: list[str] = []
@@ -510,6 +539,13 @@ def update_match_result(
     match = store.get_match(conn, match_id)
     if not match or match["tournament_id"] != tournament_id:
         raise ValueError("Matchen finns inte.")
+    if score_a < 0 or score_b < 0:
+        raise ValueError("Poäng kan inte vara negativa.")
+    if not match["participant_a_id"] or not match["participant_b_id"]:
+        raise ValueError("Matchen saknar deltagare och kan inte avslutas.")
+    if match["stage_kind"] == "knockout" and score_a == score_b:
+        raise ValueError("Slutspelsmatcher måste ha en vinnare.")
+
     winner_id = None
     if score_a > score_b:
         winner_id = match["participant_a_id"]
@@ -533,6 +569,42 @@ def update_match_result(
             conn,
             tournament_id,
             "result_updated",
+            {"tournament_id": tournament_id, "match_id": match_id},
+        )
+
+
+def update_match_score(
+    conn: sqlite3.Connection,
+    tournament_id: int,
+    match_id: int,
+    score_a: int,
+    score_b: int,
+) -> None:
+    match = store.get_match(conn, match_id)
+    if not match or match["tournament_id"] != tournament_id:
+        raise ValueError("Matchen finns inte.")
+    if match["status"] == "completed":
+        raise ValueError("Matchen är redan avslutad.")
+    if not match["participant_a_id"] or not match["participant_b_id"]:
+        raise ValueError("Matchen saknar deltagare och kan inte poängrapporteras.")
+    if score_a < 0 or score_b < 0:
+        raise ValueError("Poäng kan inte vara negativa.")
+
+    with conn:
+        conn.execute(
+            """
+            UPDATE matches
+            SET score_a = ?, score_b = ?, winner_participant_id = NULL,
+                status = 'in_progress',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND tournament_id = ?
+            """,
+            (score_a, score_b, match_id, tournament_id),
+        )
+        store.add_event(
+            conn,
+            tournament_id,
+            "score_updated",
             {"tournament_id": tournament_id, "match_id": match_id},
         )
 
@@ -609,8 +681,62 @@ def seed_knockout_from_groups(conn: sqlite3.Connection, tournament_id: int) -> b
                 (b_id, match["id"]),
             )
             changed = True
-    if changed:
-        store.add_event(conn, tournament_id, "bracket_seeded", {"tournament_id": tournament_id})
+    byes_advanced = auto_advance_byes(conn, tournament_id)
+    if changed or byes_advanced:
+        store.add_event(
+            conn,
+            tournament_id,
+            "bracket_seeded",
+            {"tournament_id": tournament_id, "byes_advanced": byes_advanced},
+        )
+    return changed or byes_advanced
+
+
+def auto_advance_byes(conn: sqlite3.Connection, tournament_id: int) -> bool:
+    changed = False
+    while True:
+        bye_matches = store.rows_to_dicts(
+            conn.execute(
+                """
+                SELECT m.*
+                FROM matches m
+                JOIN stages s ON s.id = m.stage_id
+                WHERE m.tournament_id = ? AND s.kind = 'knockout'
+                  AND m.status != 'completed'
+                  AND (
+                    (
+                      m.participant_a_id IS NOT NULL
+                      AND m.participant_b_id IS NULL
+                      AND m.placeholder_b = 'BYE'
+                    )
+                    OR (
+                      m.participant_b_id IS NOT NULL
+                      AND m.participant_a_id IS NULL
+                      AND m.placeholder_a = 'BYE'
+                    )
+                  )
+                ORDER BY m.round, m.bracket_position, m.id
+                """,
+                (tournament_id,),
+            )
+        )
+        if not bye_matches:
+            break
+        for match in bye_matches:
+            winner_id = match["participant_a_id"] or match["participant_b_id"]
+            if not winner_id:
+                continue
+            conn.execute(
+                """
+                UPDATE matches
+                SET winner_participant_id = ?, status = 'completed',
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ? AND tournament_id = ?
+                """,
+                (winner_id, match["id"], tournament_id),
+            )
+            propagate_winner(conn, tournament_id, match["id"], winner_id)
+            changed = True
     return changed
 
 
@@ -647,6 +773,11 @@ def current_and_upcoming(matches: list[dict]) -> dict:
     for match in matches:
         if match["status"] == "completed":
             recent.append(match)
+            continue
+        if not match_is_playable(match):
+            continue
+        if match["status"] == "in_progress":
+            current.append(match)
             continue
         if not match["scheduled_at"]:
             upcoming.append(match)

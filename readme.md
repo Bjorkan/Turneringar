@@ -37,14 +37,15 @@ Exempel för Compose finns i `docker-compose.example.yml`. Publicerade images fi
 ## Vyer
 
 - `/` och `/admin` laddar frontendens adminapp.
+- `/admin/tv` hanterar instansens Live TV-länkar.
 - `/tournaments/{id}` visar en turnering i adminappen.
 - `/m/{token}` visar moderatorvyn.
-- `/tv/{id}` visar Live TV-vyn.
+- `/tv/{CODE}` visar Live TV-vyn för en 10 tecken lång TV-kod.
 - `/docs` visar FastAPI:s API-dokumentation.
 
 ## UI-riktning
 
-Designen utgår från referenserna i `inspiration/`. Adminvyn är ett ljust dashboardverktyg med sidomeny, toppbar, tabeller, filter och sidopaneler. Live TV-vyn är en mörk, kontrastrik skärmvy med stora matchkort, tabeller, slutspel, resultat och notiser i roterande slides.
+Designen utgår från referenserna i `inspiration/`. Adminvyn är ett ljust dashboardverktyg med sidomeny, toppbar, tabeller, filter och sidopaneler. Live TV-vyn är en mörk, kontrastrik publik skärmvy med stora matchkort, tabeller, slutspel och resultat i roterande slides. Den visar inte interna regler, notiser eller arenavägledning.
 
 ## Första arbetsflödet
 
@@ -54,7 +55,7 @@ Designen utgår från referenserna i `inspiration/`. Adminvyn är ett ljust dash
 4. Generera gruppspel och slutspel.
 5. Autoschemalägg matcher och flytta manuellt vid behov.
 6. Skapa moderatorlänkar med PIN och dela till resultatrapportörer.
-7. Öppna `/tv/{turnerings-id}` på en TV-skärm.
+7. Skapa en Live TV-länk under `/admin/tv`, bind den till turnering eller resurs och öppna `/tv/{CODE}` på en TV-skärm.
 
 ## Tester
 
@@ -76,7 +77,7 @@ Pytest-sviten innehåller både kärnlogiktester och end-to-end API-tester som s
 - `backend/turneringar/services.py` innehåller bracketgenerering, tabeller, schemaläggning och resultatpropagering.
 - `backend/turneringar/realtime.py` hanterar Server-Sent Events.
 - `frontend/src/app.ts` driver admin- och moderatorvyerna via JSON API och kompileras till `frontend/static/app.js`.
-- `frontend/src/tv.ts` driver Live TV-vyn via JSON API och SSE och kompileras till `frontend/static/tv.js`.
+- `frontend/src/tv.ts` driver Live TV-vyn via kodbaserat JSON API och SSE och kompileras till `frontend/static/tv.js`.
 - `frontend/static/vendor/vue.global.prod.js` är en lokal Vue 3-runtime så klienten fungerar utan extern CDN.
 
 ## GitHub

@@ -52,9 +52,11 @@ async function prepareScheduledTournament(page: Page) {
   await loginAsAdmin(page);
   const tournament = await createTournament(page);
 
+  await page.locator(".tournament-tabs").getByRole("link", { name: "Deltagare" }).click();
   for (const [index, name] of ["Lag A", "Lag B", "Lag C", "Lag D"].entries()) {
     await addParticipant(page, name, index + 1);
   }
+  await page.locator(".tournament-tabs").getByRole("link", { name: "Schema" }).click();
   await addResource(page, "Plan 1");
 
   await page.getByRole("button", { name: "Generera gruppspel och slutspel" }).click();
@@ -74,22 +76,32 @@ async function firstMatchRow(page: Page): Promise<Locator> {
   return row;
 }
 
-test("admin kan klicka igenom huvudflödet och spara resultat", async ({ page }) => {
+test("admin kan klicka igenom huvudflödet, liveuppdatera och avsluta match", async ({ page }) => {
   await prepareScheduledTournament(page);
+  await page.locator(".tournament-tabs").getByRole("link", { name: "Matcher" }).click();
 
   const row = await firstMatchRow(page);
-  await row.locator("summary").click();
-  await row.getByLabel("Poäng A").fill("2");
-  await row.getByLabel("Poäng B").fill("1");
-  await row.getByRole("button", { name: "Spara resultat" }).click();
+  await row.getByRole("button", { name: "Poäng" }).click();
+  await page.getByRole("dialog").getByLabel("Poäng A").fill("2");
+  await page.getByRole("dialog").getByLabel("Poäng B").fill("1");
+  await page.getByRole("dialog").getByRole("button", { name: "Spara livepoäng" }).click();
 
-  await expect(page.getByRole("status")).toContainText("Resultat sparat.");
+  await expect(page.getByRole("status")).toContainText("Livepoäng sparad.");
+  await expect(row).toContainText("Pågår");
+  await expect(row).toContainText("2 - 1");
+
+  await row.getByRole("button", { name: "Poäng" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Avsluta match" }).click();
+
+  await expect(page.getByRole("status")).toContainText("Match avslutad.");
+  await expect(row).toContainText("Avslutad");
   await expect(row).toContainText("2 - 1");
 });
 
 test("moderatorvy och Live TV laddar från samma frontendbygge", async ({ page }) => {
-  const { tournamentId, tournamentName } = await prepareScheduledTournament(page);
+  const { tournamentName } = await prepareScheduledTournament(page);
 
+  await page.locator(".tournament-tabs").getByRole("link", { name: "Moderatorer" }).click();
   const moderatorForm = page.locator("#moderatorer form");
   await moderatorForm.locator('input[name="label"]').fill("Domare Plan 1");
   await moderatorForm.locator('select[name="resource_id"]').selectOption({ label: "Plan 1" });
@@ -115,11 +127,28 @@ test("moderatorvy och Live TV laddar från samma frontendbygge", async ({ page }
   const resultForm = page.locator(".moderator-result-form").first();
   await resultForm.locator('input[name="score_a"]').fill("3");
   await resultForm.locator('input[name="score_b"]').fill("0");
-  await resultForm.getByRole("button", { name: "Spara" }).click();
-  await expect(page.getByRole("status")).toContainText("Resultat sparat.");
+  await resultForm.getByRole("button", { name: "Spara livepoäng" }).click();
+  await expect(page.getByRole("status")).toContainText("Livepoäng sparad.");
 
-  await page.goto(`/tv/${tournamentId}`);
+  const tvCode = `TV${Date.now().toString().slice(-8)}`;
+  await page.goto("/admin/tv");
+  await expect(page.getByRole("heading", { name: "Live TV" })).toBeVisible();
+
+  const tvForm = page.locator("#new-tv-link form");
+  await tvForm.locator('input[name="label"]').fill("Publik skärm");
+  await tvForm.locator('input[name="code"]').fill(tvCode);
+  await tvForm.getByRole("button", { name: "Skapa länk" }).click();
+  await expect(page.getByRole("status")).toContainText("Live TV-länk skapad.");
+
+  const tvCard = page.locator(".tv-link-card").filter({ hasText: tvCode }).first();
+  await expect(tvCard).toBeVisible();
+  await tvCard.getByLabel("Turnering").selectOption({ label: tournamentName });
+  await tvCard.getByLabel("Resurs").selectOption({ label: "Plan 1 · Spelplan" });
+  await tvCard.getByRole("button", { name: "Uppdatera live" }).click();
+  await expect(page.getByRole("status")).toContainText("Live TV-bindning uppdaterad.");
+
+  await page.goto(`/tv/${tvCode}`);
   await expect(page.getByText(tournamentName)).toBeVisible();
   await expect(page.locator(".tv-stage")).toContainText("Lag");
-  await expect(page.locator(".tv-stage")).toContainText("Plan 1");
+  await expect(page.locator(".tv-stage")).toContainText("3 - 0");
 });

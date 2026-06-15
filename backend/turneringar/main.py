@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -11,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import services, store
 from .db import initialize_database, session
-from .realtime import hub
+from .realtime import hub, tv_hub
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -59,6 +60,19 @@ def require_text(payload: dict[str, Any], key: str, label: str) -> str:
     return value
 
 
+def parse_score(payload: dict[str, Any], key: str, label: str) -> int:
+    value = payload.get(key)
+    if value is None or value == "":
+        raise HTTPException(status_code=400, detail=f"{label} saknas.")
+    try:
+        score = int(value)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=f"{label} måste vara ett heltal.") from exc
+    if score < 0:
+        raise HTTPException(status_code=400, detail=f"{label} kan inte vara negativt.")
+    return score
+
+
 def dashboard_payload(tournament_id: int) -> dict[str, Any]:
     with session() as conn:
         tournament = store.get_tournament(conn, tournament_id)
@@ -82,8 +96,47 @@ def dashboard_payload(tournament_id: int) -> dict[str, Any]:
         }
 
 
+def filter_tv_payload_by_resource(payload: dict[str, Any], resource_id: int | None) -> dict[str, Any]:
+    if resource_id is None:
+        return payload
+    for key in ("matches", "current_matches", "upcoming_matches", "recent_matches"):
+        payload[key] = [
+            match
+            for match in payload.get(key, [])
+            if match.get("resource_id") == resource_id
+        ]
+    payload["resources"] = [
+        resource
+        for resource in payload.get("resources", [])
+        if resource.get("id") == resource_id
+    ]
+    return payload
+
+
+def tv_payload(code: str) -> dict[str, Any]:
+    with session() as conn:
+        tv_link = store.get_tv_link_by_code(conn, code)
+    if not tv_link:
+        raise HTTPException(status_code=404, detail="TV-länken finns inte.")
+    if not tv_link.get("tournament_id"):
+        return {
+            "tv_link": tv_link,
+            "bound": False,
+            "message": "Ansluten, väntar på information",
+        }
+    payload = dashboard_payload(int(tv_link["tournament_id"]))
+    payload = filter_tv_payload_by_resource(payload, tv_link.get("resource_id"))
+    payload["tv_link"] = tv_link
+    payload["bound"] = True
+    return payload
+
+
 def publish(tournament_id: int, kind: str, payload: dict[str, Any] | None = None) -> None:
-    hub.publish(tournament_id, kind, payload or {"tournament_id": tournament_id})
+    event_payload = payload or {"tournament_id": tournament_id}
+    hub.publish(tournament_id, kind, event_payload)
+    with session() as conn:
+        for tv_link in store.list_tv_links_for_tournament(conn, tournament_id):
+            tv_hub.publish(tv_link["code"], kind, event_payload)
 
 
 @app.get("/", include_in_schema=False)
@@ -93,6 +146,11 @@ def root() -> FileResponse:
 
 @app.get("/admin", include_in_schema=False)
 def admin_frontend() -> FileResponse:
+    return FileResponse(FRONTEND_DIR / "index.html")
+
+
+@app.get("/admin/tv", include_in_schema=False)
+def live_tv_admin_frontend() -> FileResponse:
     return FileResponse(FRONTEND_DIR / "index.html")
 
 
@@ -111,8 +169,8 @@ def moderator_frontend(token: str) -> FileResponse:
     return FileResponse(FRONTEND_DIR / "index.html")
 
 
-@app.get("/tv/{tournament_id}", include_in_schema=False)
-def tv_frontend(tournament_id: int) -> FileResponse:
+@app.get("/tv/{code}", include_in_schema=False)
+def tv_frontend(code: str) -> FileResponse:
     return FileResponse(FRONTEND_DIR / "tv.html")
 
 
@@ -172,6 +230,60 @@ def tournament_dashboard(request: Request, tournament_id: int) -> dict[str, Any]
 @app.get("/api/tournaments/{tournament_id}/tv")
 def tournament_tv(tournament_id: int) -> dict[str, Any]:
     return dashboard_payload(tournament_id)
+
+
+@app.get("/api/tv-links")
+def tv_links(request: Request) -> dict[str, Any]:
+    require_admin(request)
+    with session() as conn:
+        return {
+            "tv_links": store.list_tv_links(conn),
+            "tournaments": store.list_tournaments(conn),
+            "resources": store.list_all_resources(conn),
+        }
+
+
+@app.post("/api/tv-links")
+async def create_tv_link(request: Request) -> dict[str, Any]:
+    require_admin(request)
+    payload = await json_body(request)
+    label = str(payload.get("label") or "Live TV").strip() or "Live TV"
+    code = str(payload.get("code") or "").strip() or None
+    try:
+        with session() as conn:
+            with conn:
+                tv_link = store.create_tv_link(conn, label, code)
+    except sqlite3.IntegrityError as exc:
+        raise HTTPException(status_code=400, detail="TV-koden används redan.") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    tv_hub.publish(tv_link["code"], "tv_link_updated", {"code": tv_link["code"]})
+    return {"tv_link": tv_link}
+
+
+@app.patch("/api/tv-links/{link_id}")
+async def update_tv_link(request: Request, link_id: int) -> dict[str, Any]:
+    require_admin(request)
+    payload = await json_body(request)
+    try:
+        with session() as conn:
+            with conn:
+                tv_link = store.update_tv_link(
+                    conn,
+                    link_id,
+                    label=str(payload.get("label") or "").strip() or None,
+                    tournament_id=parse_int(payload.get("tournament_id")),
+                    resource_id=parse_int(payload.get("resource_id")),
+                )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    tv_hub.publish(tv_link["code"], "tv_link_updated", {"code": tv_link["code"]})
+    return {"tv_link": tv_link}
+
+
+@app.get("/api/tv/{code}")
+def tv_link_payload(code: str) -> dict[str, Any]:
+    return tv_payload(code)
 
 
 @app.patch("/api/tournaments/{tournament_id}/settings")
@@ -273,15 +385,37 @@ async def override_match(request: Request, tournament_id: int, match_id: int) ->
 async def admin_result(request: Request, tournament_id: int, match_id: int) -> dict[str, Any]:
     require_admin(request)
     payload = await json_body(request)
-    with session() as conn:
-        services.update_match_result(
-            conn,
-            tournament_id,
-            match_id,
-            parse_int(payload.get("score_a"), 0) or 0,
-            parse_int(payload.get("score_b"), 0) or 0,
-        )
+    try:
+        with session() as conn:
+            services.update_match_result(
+                conn,
+                tournament_id,
+                match_id,
+                parse_score(payload, "score_a", "Poäng A"),
+                parse_score(payload, "score_b", "Poäng B"),
+            )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     publish(tournament_id, "result_updated", {"match_id": match_id})
+    return {"ok": True}
+
+
+@app.post("/api/tournaments/{tournament_id}/matches/{match_id}/score")
+async def admin_score(request: Request, tournament_id: int, match_id: int) -> dict[str, Any]:
+    require_admin(request)
+    payload = await json_body(request)
+    try:
+        with session() as conn:
+            services.update_match_score(
+                conn,
+                tournament_id,
+                match_id,
+                parse_score(payload, "score_a", "Poäng A"),
+                parse_score(payload, "score_b", "Poäng B"),
+            )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    publish(tournament_id, "score_updated", {"match_id": match_id})
     return {"ok": True}
 
 
@@ -314,6 +448,7 @@ def moderator_session(request: Request, token: str) -> dict[str, Any]:
                 match
                 for match in store.list_matches(conn, moderator["tournament_id"])
                 if services.moderator_can_update_match(conn, moderator, match["id"])
+                and services.match_is_playable(match)
                 and match["status"] != "completed"
             ]
     safe_moderator = dict(moderator)
@@ -342,14 +477,40 @@ async def moderator_result(request: Request, token: str, match_id: int) -> dict[
             raise HTTPException(status_code=401, detail="Logga in med PIN först.")
         if not services.moderator_can_update_match(conn, moderator, match_id):
             raise HTTPException(status_code=403, detail="Matchen ingår inte i din behörighet.")
-        services.update_match_result(
-            conn,
-            moderator["tournament_id"],
-            match_id,
-            parse_int(payload.get("score_a"), 0) or 0,
-            parse_int(payload.get("score_b"), 0) or 0,
-        )
+        try:
+            services.update_match_result(
+                conn,
+                moderator["tournament_id"],
+                match_id,
+                parse_score(payload, "score_a", "Poäng A"),
+                parse_score(payload, "score_b", "Poäng B"),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
     publish(moderator["tournament_id"], "result_updated", {"match_id": match_id})
+    return {"ok": True}
+
+
+@app.post("/api/moderators/{token}/matches/{match_id}/score")
+async def moderator_score(request: Request, token: str, match_id: int) -> dict[str, Any]:
+    payload = await json_body(request)
+    with session() as conn:
+        moderator = store.get_moderator_token(conn, token)
+        if not moderator or request.cookies.get(f"moderator_{token}") != moderator["pin"]:
+            raise HTTPException(status_code=401, detail="Logga in med PIN först.")
+        if not services.moderator_can_update_match(conn, moderator, match_id):
+            raise HTTPException(status_code=403, detail="Matchen ingår inte i din behörighet.")
+        try:
+            services.update_match_score(
+                conn,
+                moderator["tournament_id"],
+                match_id,
+                parse_score(payload, "score_a", "Poäng A"),
+                parse_score(payload, "score_b", "Poäng B"),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    publish(moderator["tournament_id"], "score_updated", {"match_id": match_id})
     return {"ok": True}
 
 
@@ -367,3 +528,19 @@ async def events(tournament_id: int):
 
     return StreamingResponse(stream(), media_type="text/event-stream")
 
+
+@app.get("/api/tv/{code}/events")
+async def tv_events(code: str):
+    channel = store.normalize_tv_code(code)
+
+    async def stream():
+        async for queue in tv_hub.subscribe(channel):
+            yield "event: connected\ndata: {\"ok\": true}\n\n"
+            while True:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=20)
+                    yield event.to_sse()
+                except asyncio.TimeoutError:
+                    yield "event: ping\ndata: {}\n\n"
+
+    return StreamingResponse(stream(), media_type="text/event-stream")

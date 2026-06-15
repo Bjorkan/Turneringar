@@ -9,6 +9,10 @@ from datetime import datetime, timedelta
 from .db import row_to_dict, rows_to_dicts
 
 
+TV_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+TV_CODE_RE = re.compile(r"^[A-Z0-9]{10}$")
+
+
 def slugify(value: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
     return slug or "turnering"
@@ -173,6 +177,162 @@ def list_resources(
         sql += " AND active = 1"
     sql += " ORDER BY active DESC, kind, name, id"
     return rows_to_dicts(conn.execute(sql, (tournament_id,)))
+
+
+def list_all_resources(conn: sqlite3.Connection) -> list[dict]:
+    return rows_to_dicts(
+        conn.execute(
+            """
+            SELECT r.*, t.name AS tournament_name
+            FROM resources r
+            JOIN tournaments t ON t.id = r.tournament_id
+            ORDER BY t.created_at DESC, t.id DESC, r.active DESC, r.kind, r.name, r.id
+            """
+        )
+    )
+
+
+def normalize_tv_code(value: str) -> str:
+    return re.sub(r"[^A-Z0-9]", "", value.upper())
+
+
+def generate_tv_code(conn: sqlite3.Connection) -> str:
+    for _ in range(100):
+        code = "".join(secrets.choice(TV_CODE_ALPHABET) for _ in range(10))
+        if not conn.execute("SELECT 1 FROM tv_links WHERE code = ?", (code,)).fetchone():
+            return code
+    raise RuntimeError("Kunde inte skapa en unik TV-kod.")
+
+
+def get_tv_link_by_id(conn: sqlite3.Connection, link_id: int) -> dict | None:
+    return row_to_dict(
+        conn.execute(
+            """
+            SELECT
+                tl.*,
+                t.name AS tournament_name,
+                r.name AS resource_name,
+                r.kind AS resource_kind
+            FROM tv_links tl
+            LEFT JOIN tournaments t ON t.id = tl.tournament_id
+            LEFT JOIN resources r ON r.id = tl.resource_id
+            WHERE tl.id = ?
+            """,
+            (link_id,),
+        ).fetchone()
+    )
+
+
+def get_tv_link_by_code(conn: sqlite3.Connection, code: str) -> dict | None:
+    normalized = normalize_tv_code(code)
+    return row_to_dict(
+        conn.execute(
+            """
+            SELECT
+                tl.*,
+                t.name AS tournament_name,
+                r.name AS resource_name,
+                r.kind AS resource_kind
+            FROM tv_links tl
+            LEFT JOIN tournaments t ON t.id = tl.tournament_id
+            LEFT JOIN resources r ON r.id = tl.resource_id
+            WHERE tl.code = ?
+            """,
+            (normalized,),
+        ).fetchone()
+    )
+
+
+def list_tv_links(conn: sqlite3.Connection) -> list[dict]:
+    return rows_to_dicts(
+        conn.execute(
+            """
+            SELECT
+                tl.*,
+                t.name AS tournament_name,
+                r.name AS resource_name,
+                r.kind AS resource_kind
+            FROM tv_links tl
+            LEFT JOIN tournaments t ON t.id = tl.tournament_id
+            LEFT JOIN resources r ON r.id = tl.resource_id
+            ORDER BY tl.created_at DESC, tl.id DESC
+            """
+        )
+    )
+
+
+def list_tv_links_for_tournament(conn: sqlite3.Connection, tournament_id: int) -> list[dict]:
+    return rows_to_dicts(
+        conn.execute(
+            "SELECT * FROM tv_links WHERE tournament_id = ? ORDER BY id",
+            (tournament_id,),
+        )
+    )
+
+
+def create_tv_link(
+    conn: sqlite3.Connection,
+    label: str,
+    code: str | None = None,
+) -> dict:
+    normalized = normalize_tv_code(code or "") if code else generate_tv_code(conn)
+    if not TV_CODE_RE.fullmatch(normalized):
+        raise ValueError("TV-koden måste vara exakt 10 tecken och bara innehålla A-Z eller 0-9.")
+    cursor = conn.execute(
+        """
+        INSERT INTO tv_links (code, label)
+        VALUES (?, ?)
+        """,
+        (normalized, label.strip() or "Live TV"),
+    )
+    return get_tv_link_by_id(conn, int(cursor.lastrowid))
+
+
+def update_tv_link(
+    conn: sqlite3.Connection,
+    link_id: int,
+    label: str | None = None,
+    tournament_id: int | None = None,
+    resource_id: int | None = None,
+) -> dict:
+    existing = get_tv_link_by_id(conn, link_id)
+    if not existing:
+        raise ValueError("TV-länken finns inte.")
+
+    if resource_id is not None:
+        resource = row_to_dict(
+            conn.execute(
+                "SELECT * FROM resources WHERE id = ?",
+                (resource_id,),
+            ).fetchone()
+        )
+        if not resource:
+            raise ValueError("Resursen finns inte.")
+        if tournament_id is None:
+            tournament_id = int(resource["tournament_id"])
+        elif int(resource["tournament_id"]) != tournament_id:
+            raise ValueError("Resursen hör inte till vald turnering.")
+
+    if tournament_id is not None and not get_tournament(conn, tournament_id):
+        raise ValueError("Turneringen finns inte.")
+
+    conn.execute(
+        """
+        UPDATE tv_links
+        SET label = ?, tournament_id = ?, resource_id = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        """,
+        (
+            (label.strip() if label is not None and label.strip() else existing["label"]),
+            tournament_id,
+            resource_id if tournament_id is not None else None,
+            link_id,
+        ),
+    )
+    updated = get_tv_link_by_id(conn, link_id)
+    if not updated:
+        raise ValueError("TV-länken finns inte.")
+    return updated
 
 
 def create_moderator_token(
@@ -347,10 +507,13 @@ def get_match(conn: sqlite3.Connection, match_id: int) -> dict | None:
             """
             SELECT
                 m.*,
+                s.name AS stage_name,
+                s.kind AS stage_kind,
                 pa.name AS participant_a_name,
                 pb.name AS participant_b_name,
                 r.name AS resource_name
             FROM matches m
+            JOIN stages s ON s.id = m.stage_id
             LEFT JOIN participants pa ON pa.id = m.participant_a_id
             LEFT JOIN participants pb ON pb.id = m.participant_b_id
             LEFT JOIN resources r ON r.id = m.resource_id
@@ -377,4 +540,3 @@ def enrich_match_row(row: dict) -> dict:
         except ValueError:
             row["time_label"] = row["scheduled_at"]
     return row
-

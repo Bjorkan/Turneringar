@@ -65,6 +65,9 @@ class ApiClient:
     def post(self, path: str, json: dict[str, object]) -> ApiResponse:
         return self.request("POST", path, json)
 
+    def patch(self, path: str, json: dict[str, object]) -> ApiResponse:
+        return self.request("PATCH", path, json)
+
 
 @pytest.fixture()
 def client(tmp_path: Path) -> Iterator[ApiClient]:
@@ -186,15 +189,66 @@ def test_full_admin_tv_and_moderator_flow(client: ApiClient) -> None:
     assert len(data["participants"]) == 4
     assert len(data["resources"]) == 2
     assert data["matches"]
-    assert all(match["scheduled_at"] for match in data["matches"])
+    assert all(
+        match["scheduled_at"]
+        for match in data["matches"]
+        if match["participant_a_id"] and match["participant_b_id"]
+    )
+    assert not any(
+        match["scheduled_at"]
+        for match in data["matches"]
+        if not (match["participant_a_id"] and match["participant_b_id"])
+    )
     assert {stage["kind"] for stage in data["stages"]} == {"group", "knockout"}
 
     group_match = next(match for match in data["matches"] if match["stage_kind"] == "group")
+    response = client.post(
+        f"/api/tournaments/{tournament_id}/matches/{group_match['id']}/score",
+        json={"score_a": 1, "score_b": 1},
+    )
+    assert response.status_code == 200
+
+    live_dashboard = client.get(f"/api/tournaments/{tournament_id}")
+    assert live_dashboard.status_code == 200
+    live_match = next(match for match in live_dashboard.json()["matches"] if match["id"] == group_match["id"])
+    assert live_match["status"] == "in_progress"
+    assert live_match["score_label"] == "1 - 1"
+
     response = client.post(
         f"/api/tournaments/{tournament_id}/matches/{group_match['id']}/result",
         json={"score_a": 2, "score_b": 1},
     )
     assert response.status_code == 200
+
+    response = client.post("/api/tv-links", json={"label": "Hallskärm", "code": "TVLINK0001"})
+    assert response.status_code == 200
+    tv_link = response.json()["tv_link"]
+    assert tv_link["code"] == "TVLINK0001"
+
+    waiting_payload = client.get("/api/tv/TVLINK0001")
+    assert waiting_payload.status_code == 200
+    waiting_data = waiting_payload.json()
+    assert waiting_data["bound"] is False
+    assert waiting_data["message"] == "Ansluten, väntar på information"
+
+    response = client.patch(
+        f"/api/tv-links/{tv_link['id']}",
+        json={
+            "label": "Plan 1-skärm",
+            "tournament_id": tournament_id,
+            "resource_id": data["resources"][0]["id"],
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["tv_link"]["resource_id"] == data["resources"][0]["id"]
+
+    public_tv_payload = client.get("/api/tv/TVLINK0001")
+    assert public_tv_payload.status_code == 200
+    public_tv_data = public_tv_payload.json()
+    assert public_tv_data["bound"] is True
+    assert public_tv_data["tournament"]["id"] == tournament_id
+    assert public_tv_data["resources"] == [data["resources"][0]]
+    assert all(match["resource_id"] == data["resources"][0]["id"] for match in public_tv_data["matches"])
 
     tv_payload = client.get(f"/api/tournaments/{tournament_id}/tv")
     assert tv_payload.status_code == 200
