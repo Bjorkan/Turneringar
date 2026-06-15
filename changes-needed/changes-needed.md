@@ -108,6 +108,9 @@ Den publika TV-payloaden töms redan på `events` av den tidigare publika payloa
 
 19. Slutspelsplaceholdern använder databas-ID som publik matchreferens: `Vinnare match 23`. Det är inte en begriplig bracketposition och blir extra rörigt efter regenerering. Se `backend/turneringar/services.py:237-238`.
 
+Status: Löst
+Jag ändrade `build_knockout_stage()` så den sparar föregående rundas publika matchnamn vid bracketbygget. När senare rundor skapas används nu placeholders som `Vinnare semifinal 1` och `Vinnare semifinal 2` i stället för interna databas-ID:n. De interna `source_a_match_id` och `source_b_match_id` finns kvar oförändrade för propagation, så beteendet bakom bracketen påverkas inte. Regressionstestet `backend/tests/test_services.py::TournamentServiceTests::test_knockout_source_placeholders_use_bracket_labels` verifierar de nya placeholdertexterna och att `Vinnare match` inte längre förekommer.
+
 20. Live TV visar resource kind på engelska/rådatabasvärde (`COURT`, `SERVER`) i stället för svensk label (`Spelplan`, `Server`, `Bord`). Screenshot: `.tmp/review-screens/tv-public-slide3-1920.png`. Se `frontend/src/tv/TvApp.tsx:278-279`.
 
 ## Medium

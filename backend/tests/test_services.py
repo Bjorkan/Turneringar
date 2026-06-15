@@ -137,6 +137,21 @@ class TournamentServiceTests(unittest.TestCase):
         ]
         self.assertEqual([], same_group_pairings)
 
+    def test_knockout_source_placeholders_use_bracket_labels(self) -> None:
+        tournament_id = self.create_seeded_tournament()
+
+        services.generate_structure(self.conn, tournament_id)
+
+        final = next(
+            match
+            for match in store.list_matches(self.conn, tournament_id)
+            if match["stage_kind"] == "knockout" and match["round"] == 2
+        )
+        self.assertEqual("Vinnare semifinal 1", final["placeholder_a"])
+        self.assertEqual("Vinnare semifinal 2", final["placeholder_b"])
+        self.assertNotIn("Vinnare match", final["placeholder_a"])
+        self.assertNotIn("Vinnare match", final["placeholder_b"])
+
     def test_generate_rejects_more_qualifiers_than_group_members(self) -> None:
         tournament_id = self.create_seeded_tournament(
             participant_count=3,

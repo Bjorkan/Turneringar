@@ -200,7 +200,9 @@ def build_knockout_stage(
 
     first_round_pairs = balance_first_round_pairs(qualifier_slots, bracket_size)
     previous_round: list[int] = []
+    previous_round_names: dict[int, str] = {}
     for index, (slot_a, slot_b) in enumerate(first_round_pairs, start=1):
+        match_name = knockout_round_name(bracket_size // 2, index)
         match_id = conn.execute(
             """
             INSERT INTO matches (
@@ -215,7 +217,7 @@ def build_knockout_stage(
                 tournament_id,
                 knockout_stage_id,
                 index,
-                knockout_round_name(bracket_size // 2, index),
+                match_name,
                 slot_a["label"],
                 slot_b["label"],
                 slot_a["group_id"],
@@ -226,14 +228,17 @@ def build_knockout_stage(
             ),
         ).lastrowid
         previous_round.append(int(match_id))
+        previous_round_names[int(match_id)] = match_name
 
     round_number = 2
     while len(previous_round) > 1:
         next_round: list[int] = []
+        next_round_names: dict[int, str] = {}
         match_count = len(previous_round) // 2
         for index, (source_a, source_b) in enumerate(
             zip(previous_round[0::2], previous_round[1::2]), start=1
         ):
+            match_name = knockout_round_name(match_count, index)
             match_id = conn.execute(
                 """
                 INSERT INTO matches (
@@ -248,16 +253,18 @@ def build_knockout_stage(
                     knockout_stage_id,
                     round_number,
                     index,
-                    knockout_round_name(match_count, index),
-                    f"Vinnare match {source_a}",
-                    f"Vinnare match {source_b}",
+                    match_name,
+                    f"Vinnare {previous_round_names[source_a].lower()}",
+                    f"Vinnare {previous_round_names[source_b].lower()}",
                     source_a,
                     source_b,
                     match_minutes,
                 ),
             ).lastrowid
             next_round.append(int(match_id))
+            next_round_names[int(match_id)] = match_name
         previous_round = next_round
+        previous_round_names = next_round_names
         round_number += 1
 
 
