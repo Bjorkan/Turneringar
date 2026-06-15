@@ -26,9 +26,10 @@ def free_port() -> int:
 
 
 class ApiResponse:
-    def __init__(self, status_code: int, body: str) -> None:
+    def __init__(self, status_code: int, body: str, set_cookies: list[str] | None = None) -> None:
         self.status_code = status_code
         self.text = body
+        self.set_cookies = set_cookies or []
 
     def json(self) -> object:
         return json.loads(self.text)
@@ -54,10 +55,10 @@ class ApiClient:
         try:
             with self.opener.open(request, timeout=5) as response:
                 text = response.read().decode("utf-8")
-                return ApiResponse(response.status, text)
+                return ApiResponse(response.status, text, response.headers.get_all("Set-Cookie", []))
         except HTTPError as exc:
             text = exc.read().decode("utf-8")
-            return ApiResponse(exc.code, text)
+            return ApiResponse(exc.code, text, exc.headers.get_all("Set-Cookie", []))
 
     def get(self, path: str) -> ApiResponse:
         return self.request("GET", path)
@@ -176,6 +177,46 @@ def test_admin_api_requires_login(client: ApiClient) -> None:
     response = client.get("/api/tournaments")
     assert response.status_code == 200
     assert response.json() == {"tournaments": []}
+
+
+def test_login_cookies_are_signed_sessions_not_raw_pins(client: ApiClient) -> None:
+    response = client.post("/api/admin/login", json={"pin": "test-pin"})
+    assert response.status_code == 200
+    admin_cookies = "\n".join(response.set_cookies)
+    assert "test-pin" not in admin_cookies
+    admin_session_cookie = next(
+        cookie for cookie in response.set_cookies if cookie.startswith("turneringar_admin_session=")
+    )
+
+    second_response = client.post("/api/admin/login", json={"pin": "test-pin"})
+    assert second_response.status_code == 200
+    second_admin_session_cookie = next(
+        cookie for cookie in second_response.set_cookies if cookie.startswith("turneringar_admin_session=")
+    )
+    assert admin_session_cookie.split(";", 1)[0] != second_admin_session_cookie.split(";", 1)[0]
+    assert client.get("/api/session").json()["is_admin"] is True
+
+    tournament_id = create_ready_tournament(client)
+    dashboard = client.get(f"/api/tournaments/{tournament_id}").json()
+    response = client.post(
+        f"/api/tournaments/{tournament_id}/moderators",
+        json={"label": "Plan 1", "resource_id": dashboard["resources"][0]["id"]},
+    )
+    assert response.status_code == 200
+    moderator = response.json()["moderator"]
+
+    response = client.post(
+        f"/api/moderators/{moderator['token']}/login",
+        json={"pin": moderator["pin"]},
+    )
+    assert response.status_code == 200
+    moderator_cookies = "\n".join(response.set_cookies)
+    assert moderator["pin"] not in moderator_cookies
+    assert any(
+        cookie.startswith(f"turneringar_moderator_session_{moderator['token']}=")
+        for cookie in response.set_cookies
+    )
+    assert client.get(f"/api/moderators/{moderator['token']}").json()["authorized"] is True
 
 
 def test_full_admin_tv_and_moderator_flow(client: ApiClient) -> None:

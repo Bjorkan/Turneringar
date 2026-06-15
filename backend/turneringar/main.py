@@ -1,8 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import binascii
+import hashlib
+import hmac
+import json
 import os
+import secrets
 import sqlite3
+import time
 from pathlib import Path
 from typing import Any
 
@@ -17,8 +24,13 @@ from .realtime import hub, tv_hub
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
-ADMIN_COOKIE = "turneringar_admin_pin"
+ADMIN_COOKIE = "turneringar_admin_session"
+LEGACY_ADMIN_COOKIE = "turneringar_admin_pin"
+MODERATOR_COOKIE_PREFIX = "turneringar_moderator_session_"
+LEGACY_MODERATOR_COOKIE_PREFIX = "moderator_"
 ADMIN_PIN = os.environ.get("ADMIN_PIN", "admin123")
+SESSION_SECRET = os.environ.get("SESSION_SECRET") or secrets.token_urlsafe(32)
+SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
 PARTICIPANT_KINDS = {"team", "player"}
 RESOURCE_KINDS = {"court", "server", "table"}
 MAX_GROUP_COUNT = 64
@@ -33,8 +45,69 @@ def startup() -> None:
     initialize_database()
 
 
+def base64url_encode(value: bytes) -> str:
+    return base64.urlsafe_b64encode(value).rstrip(b"=").decode("ascii")
+
+
+def base64url_decode(value: str) -> bytes:
+    padding = "=" * (-len(value) % 4)
+    return base64.urlsafe_b64decode(value + padding)
+
+
+def signed_session_value(kind: str, subject: str) -> str:
+    payload = {
+        "kind": kind,
+        "subject": subject,
+        "iat": int(time.time()),
+        "nonce": secrets.token_urlsafe(16),
+    }
+    body = base64url_encode(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8"))
+    signature = base64url_encode(
+        hmac.new(SESSION_SECRET.encode("utf-8"), body.encode("ascii"), hashlib.sha256).digest()
+    )
+    return f"{body}.{signature}"
+
+
+def valid_signed_session(value: str | None, kind: str, subject: str) -> bool:
+    if not value or "." not in value:
+        return False
+    body, signature = value.split(".", 1)
+    expected_signature = base64url_encode(
+        hmac.new(SESSION_SECRET.encode("utf-8"), body.encode("ascii"), hashlib.sha256).digest()
+    )
+    if not hmac.compare_digest(signature, expected_signature):
+        return False
+    try:
+        payload = json.loads(base64url_decode(body).decode("utf-8"))
+        issued_at = int(payload.get("iat", 0))
+    except (binascii.Error, TypeError, ValueError, UnicodeDecodeError):
+        return False
+    now = int(time.time())
+    return (
+        payload.get("kind") == kind
+        and payload.get("subject") == subject
+        and now - SESSION_MAX_AGE_SECONDS <= issued_at <= now + 60
+    )
+
+
+def moderator_cookie_name(token: str) -> str:
+    return f"{MODERATOR_COOKIE_PREFIX}{token}"
+
+
+def legacy_moderator_cookie_name(token: str) -> str:
+    return f"{LEGACY_MODERATOR_COOKIE_PREFIX}{token}"
+
+
+def set_session_cookie(response: JSONResponse, name: str, value: str) -> None:
+    response.set_cookie(name, value, httponly=True, samesite="lax", max_age=SESSION_MAX_AGE_SECONDS)
+
+
 def is_admin(request: Request) -> bool:
-    return request.cookies.get(ADMIN_COOKIE) == ADMIN_PIN
+    return valid_signed_session(request.cookies.get(ADMIN_COOKIE), "admin", "admin")
+
+
+def is_moderator_authorized(request: Request, token: str) -> bool:
+    return valid_signed_session(request.cookies.get(moderator_cookie_name(token)), "moderator", token)
 
 
 def require_admin(request: Request) -> None:
@@ -228,7 +301,8 @@ async def admin_login(request: Request) -> JSONResponse:
     if payload.get("pin") != ADMIN_PIN:
         raise HTTPException(status_code=401, detail="Fel admin-PIN.")
     response = JSONResponse({"ok": True})
-    response.set_cookie(ADMIN_COOKIE, ADMIN_PIN, httponly=True, samesite="lax")
+    set_session_cookie(response, ADMIN_COOKIE, signed_session_value("admin", "admin"))
+    response.delete_cookie(LEGACY_ADMIN_COOKIE)
     return response
 
 
@@ -236,6 +310,7 @@ async def admin_login(request: Request) -> JSONResponse:
 def admin_logout() -> JSONResponse:
     response = JSONResponse({"ok": True})
     response.delete_cookie(ADMIN_COOKIE)
+    response.delete_cookie(LEGACY_ADMIN_COOKIE)
     return response
 
 
@@ -511,7 +586,7 @@ def moderator_session(request: Request, token: str) -> dict[str, Any]:
         moderator = store.get_moderator_token(conn, token)
         if not moderator:
             raise HTTPException(status_code=404, detail="Moderatorlänken finns inte.")
-        authorized = request.cookies.get(f"moderator_{token}") == moderator["pin"]
+        authorized = is_moderator_authorized(request, token)
         matches = []
         if authorized:
             matches = [
@@ -534,7 +609,8 @@ async def moderator_login(request: Request, token: str) -> JSONResponse:
     if not moderator or payload.get("pin") != moderator["pin"]:
         raise HTTPException(status_code=401, detail="Fel PIN.")
     response = JSONResponse({"ok": True})
-    response.set_cookie(f"moderator_{token}", moderator["pin"], httponly=True, samesite="lax")
+    set_session_cookie(response, moderator_cookie_name(token), signed_session_value("moderator", token))
+    response.delete_cookie(legacy_moderator_cookie_name(token))
     return response
 
 
@@ -543,7 +619,7 @@ async def moderator_result(request: Request, token: str, match_id: int) -> dict[
     payload = await json_body(request)
     with session() as conn:
         moderator = store.get_moderator_token(conn, token)
-        if not moderator or request.cookies.get(f"moderator_{token}") != moderator["pin"]:
+        if not moderator or not is_moderator_authorized(request, token):
             raise HTTPException(status_code=401, detail="Logga in med PIN först.")
         if not services.moderator_can_update_match(conn, moderator, match_id):
             raise HTTPException(status_code=403, detail="Matchen ingår inte i din behörighet.")
@@ -566,7 +642,7 @@ async def moderator_score(request: Request, token: str, match_id: int) -> dict[s
     payload = await json_body(request)
     with session() as conn:
         moderator = store.get_moderator_token(conn, token)
-        if not moderator or request.cookies.get(f"moderator_{token}") != moderator["pin"]:
+        if not moderator or not is_moderator_authorized(request, token):
             raise HTTPException(status_code=401, detail="Logga in med PIN först.")
         if not services.moderator_can_update_match(conn, moderator, match_id):
             raise HTTPException(status_code=403, detail="Matchen ingår inte i din behörighet.")

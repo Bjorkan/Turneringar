@@ -155,6 +155,9 @@ Jag skärpte `services.moderator_can_update_match()` så en moderator bara får 
 
 28. Admin-PIN och moderator-PIN lagras direkt i cookies. De är HttpOnly men råhemligheten blir sessionsbeviset. Byt till signerad session/token med rotation och lagra aldrig PIN som cookievärde. Se `backend/turneringar/main.py:20`, `backend/turneringar/main.py:33`, `backend/turneringar/main.py:188`, `backend/turneringar/main.py:467`.
 
+Status: Löst
+Jag ersatte rå PIN-cookies med HMAC-signerade sessionsvärden i `backend/turneringar/main.py`, med separata namn för admin och moderator. Varje lyckad login skapar ett nytt tokenvärde med tidsstämpel och nonce, och de gamla rå-PIN-cookie-namnen rensas vid login/logout så de inte fortsätter leva i klienten. `is_admin()` och moderator-API:ets auktorisering verifierar nu signaturen, sessionstypen, subjektet och maxåldern i stället för att jämföra cookievärdet mot PIN-koden. Regressionstestet `backend/tests/test_api.py::test_login_cookies_are_signed_sessions_not_raw_pins` kontrollerar att admin- och moderatorlogin fortfarande fungerar, att adminsessionen roteras mellan loginförsök och att `Set-Cookie` inte innehåller admin-PIN eller moderator-PIN.
+
 29. Ingen bruteforce-skydd eller rate limit på admin- och moderator-PIN. En lokal app kan fortfarande ligga på ett LAN. Se `backend/turneringar/main.py:183-189`, `backend/turneringar/main.py:459-468`.
 
 30. Backend exponerar att default-PIN används men UI varnar inte arrangören. `admin_pin_default` finns i `/api/session`, men ingen tydlig varning visas i adminskalet. Se `backend/turneringar/main.py:179`, `frontend/src/admin/AdminApp.tsx:1344-1367`.
