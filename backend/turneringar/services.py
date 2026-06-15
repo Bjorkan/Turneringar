@@ -458,7 +458,10 @@ def validate_manual_slot(
         return ["Resursen hör inte till turneringen."]
     if not match_is_playable(match):
         return ["Matchen saknar deltagare och kan inte schemaläggas."]
-    start = parse_local_datetime(scheduled_at)
+    try:
+        start = parse_local_datetime(scheduled_at)
+    except ValueError:
+        return ["Tid måste vara ett giltigt datum."]
     end = start + timedelta(minutes=duration_minutes)
     errors: list[str] = []
 

@@ -36,6 +36,9 @@ Jag gjorde `services.generate_structure()` bekräftelsemedveten och låter den s
 
 5. Vanlig felinmatning ger 500 Internal Server Error. Bekräftade repros: `group_count: "abc"`, participant `kind: "alien"`, resource `kind: "alien"` och manuell tid `scheduled_at: "not-a-date"` gav alla 500. `parse_int()` kastar rå `ValueError`, SQLite CHECK/FK-fel fångas inte, och `parse_local_datetime()` fångas inte i slotvalidering. Se `backend/turneringar/main.py:50-53`, `backend/turneringar/main.py:207-220`, `backend/turneringar/main.py:289-305`, `backend/turneringar/main.py:365-377`, `backend/turneringar/store.py:123-137`, `backend/turneringar/store.py:154-167`, `backend/turneringar/services.py:443`.
 
+Status: Löst
+Jag ändrade `parse_int()` i `backend/turneringar/main.py` så ogiltiga heltal blir ett kontrollerat `400`-svar i stället för en rå `ValueError`. Deltagar- och resurstyp valideras nu innan databasinsert, vilket gör att `kind: "alien"` stoppas med tydlig klientfelstatus i stället för att SQLite CHECK-felet läcker som 500. Manuell schemaläggning fångar ogiltiga datum i `validate_manual_slot()` och returnerar ett valideringsfel utan att uppdatera matchen. Regressionstestet `backend/tests/test_api.py::test_common_invalid_inputs_return_400` kör alla fyra reprofallen och verifierar att de svarar `400`.
+
 ## High
 
 6. Mobil adminvy börjar med en trasig kollapsad sidomeny som äter första skärmen. På 390px visas en stor ikonmatris utan etiketter ovanför toppbaren och innehållet. Orsaken är att `compact` initieras till true på max 900px och `.admin-shell.menu-collapsed ... display:none` vinner över mobilreglerna. Screenshot: `.tmp/review-screens/participants-mobile.png`. Se `frontend/src/admin/AdminApp.tsx:183`, `frontend/src/admin/AdminApp.tsx:202-225`, `frontend/public/app.css:2200-2232`.

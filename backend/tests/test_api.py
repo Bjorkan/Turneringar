@@ -318,6 +318,43 @@ def test_regenerate_requires_confirmation_when_structure_exists(client: ApiClien
     assert response.status_code == 200
 
 
+def test_common_invalid_inputs_return_400(client: ApiClient) -> None:
+    login(client)
+
+    response = client.post("/api/tournaments", json={"name": "Feldata", "group_count": "abc"})
+    assert response.status_code == 400
+
+    response = client.post("/api/tournaments", json={"name": "Feldata", "group_count": 2})
+    assert response.status_code == 200
+    tournament_id = response.json()["id"]
+
+    response = client.post(
+        f"/api/tournaments/{tournament_id}/participants",
+        json={"name": "Okänd typ", "kind": "alien"},
+    )
+    assert response.status_code == 400
+
+    response = client.post(
+        f"/api/tournaments/{tournament_id}/resources",
+        json={"name": "Okänd plats", "kind": "alien"},
+    )
+    assert response.status_code == 400
+
+    ready_tournament_id = create_ready_tournament(client)
+    dashboard = client.get(f"/api/tournaments/{ready_tournament_id}").json()
+    match = next(match for match in dashboard["matches"] if match["stage_kind"] == "group")
+    response = client.patch(
+        f"/api/tournaments/{ready_tournament_id}/matches/{match['id']}/slot",
+        json={
+            "resource_id": dashboard["resources"][0]["id"],
+            "scheduled_at": "not-a-date",
+            "duration_minutes": 20,
+        },
+    )
+    assert response.status_code == 400
+    assert "giltigt datum" in response.text
+
+
 def test_static_frontends_are_served(client: ApiClient) -> None:
     assert client.get("/").status_code == 200
     assert client.get("/admin").status_code == 200

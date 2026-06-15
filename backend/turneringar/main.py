@@ -19,6 +19,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
 ADMIN_COOKIE = "turneringar_admin_pin"
 ADMIN_PIN = os.environ.get("ADMIN_PIN", "admin123")
+PARTICIPANT_KINDS = {"team", "player"}
+RESOURCE_KINDS = {"court", "server", "table"}
 
 app = FastAPI(title="Turneringar API")
 app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIR / "static")), name="assets")
@@ -41,7 +43,10 @@ def require_admin(request: Request) -> None:
 async def json_body(request: Request) -> dict[str, Any]:
     if not request.headers.get("content-type", "").startswith("application/json"):
         return {}
-    body = await request.json()
+    try:
+        body = await request.json()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Ogiltig JSON.") from exc
     if not isinstance(body, dict):
         raise HTTPException(status_code=400, detail="JSON-objekt krävs.")
     return body
@@ -50,7 +55,10 @@ async def json_body(request: Request) -> dict[str, Any]:
 def parse_int(value: Any, default: int | None = None) -> int | None:
     if value is None or value == "":
         return default
-    return int(value)
+    try:
+        return int(value)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="Värdet måste vara ett heltal.") from exc
 
 
 def require_text(payload: dict[str, Any], key: str, label: str) -> str:
@@ -319,13 +327,16 @@ async def add_participant(request: Request, tournament_id: int) -> dict[str, Any
     require_admin(request)
     payload = await json_body(request)
     name = require_text(payload, "name", "Deltagarnamn")
+    kind = str(payload.get("kind") or "team")
+    if kind not in PARTICIPANT_KINDS:
+        raise HTTPException(status_code=400, detail="Deltagartypen är ogiltig.")
     with session() as conn:
         with conn:
             participant_id = store.add_participant(
                 conn,
                 tournament_id,
                 name,
-                str(payload.get("kind") or "team"),
+                kind,
                 parse_int(payload.get("seed")),
             )
             store.add_event(conn, tournament_id, "participant_added", {"participant_id": participant_id})
@@ -338,9 +349,12 @@ async def add_resource(request: Request, tournament_id: int) -> dict[str, Any]:
     require_admin(request)
     payload = await json_body(request)
     name = require_text(payload, "name", "Resursnamn")
+    kind = str(payload.get("kind") or "court")
+    if kind not in RESOURCE_KINDS:
+        raise HTTPException(status_code=400, detail="Resurstypen är ogiltig.")
     with session() as conn:
         with conn:
-            resource_id = store.add_resource(conn, tournament_id, name, str(payload.get("kind") or "court"))
+            resource_id = store.add_resource(conn, tournament_id, name, kind)
             store.add_event(conn, tournament_id, "resource_added", {"resource_id": resource_id})
     publish(tournament_id, "resource_added", {"resource_id": resource_id})
     return {"id": resource_id}
