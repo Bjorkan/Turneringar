@@ -155,6 +155,7 @@ def generate_structure(
             (tournament_id,),
         )
         store.add_event(conn, tournament_id, "structure_generated", {"tournament_id": tournament_id})
+        seed_knockout_from_groups(conn, tournament_id)
 
 
 def build_qualifier_slots(groups: list[dict], qualifiers_per_group: int) -> list[dict]:

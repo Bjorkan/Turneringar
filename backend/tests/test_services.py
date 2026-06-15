@@ -219,16 +219,15 @@ class TournamentServiceTests(unittest.TestCase):
         updated = store.get_match(self.conn, semifinal["id"])
         self.assertNotEqual("completed", updated["status"])
 
-    def test_bye_slot_advances_after_group_seed(self) -> None:
+    def test_single_member_groups_seed_and_advance_byes_after_generate(self) -> None:
         tournament_id = self.create_seeded_tournament(
             participant_count=3,
             resource_count=1,
             group_count=3,
             qualifiers_per_group=1,
         )
-        services.generate_structure(self.conn, tournament_id)
 
-        self.assertTrue(services.seed_knockout_from_groups(self.conn, tournament_id))
+        services.generate_structure(self.conn, tournament_id)
 
         knockout_matches = [
             match
