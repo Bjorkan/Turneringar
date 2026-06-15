@@ -295,3 +295,61 @@ test("Live TV visar när listor fortsätter utanför sliden", async ({ page }) =
   await expect(page.locator(".tv-stage")).toContainText("1 lag till i gruppen");
   await expect(page.locator(".tv-stage")).toContainText("1 plats till");
 });
+
+test("Live TV behåller aktiv slide vid SSE-refresh", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await loginAsAdmin(page);
+
+  const tournamentName = `TV Refresh Cup ${Date.now()}`;
+  let response = await page.request.post("/api/tournaments", {
+    data: {
+      name: tournamentName,
+      starts_at: "2026-12-14T10:00",
+      group_count: 2,
+      qualifiers_per_group: 1,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+  const tournament = await response.json() as { id: number };
+
+  for (const [index, name] of ["Lag A", "Lag B", "Lag C", "Lag D"].entries()) {
+    response = await page.request.post(`/api/tournaments/${tournament.id}/participants`, {
+      data: { name, kind: "team", seed: index + 1 },
+    });
+    expect(response.ok()).toBeTruthy();
+  }
+
+  response = await page.request.post(`/api/tournaments/${tournament.id}/resources`, {
+    data: { name: "Plan 1", kind: "court" },
+  });
+  expect(response.ok()).toBeTruthy();
+  response = await page.request.post(`/api/tournaments/${tournament.id}/generate`, { data: {} });
+  expect(response.ok()).toBeTruthy();
+  response = await page.request.post(`/api/tournaments/${tournament.id}/schedule`, { data: {} });
+  expect(response.ok()).toBeTruthy();
+
+  const tvCode = `TR${Date.now().toString().slice(-8)}`;
+  response = await page.request.post("/api/tv-links", { data: { label: "Refresh TV", code: tvCode } });
+  expect(response.ok()).toBeTruthy();
+  const tvLink = (await response.json() as { tv_link: { id: number } }).tv_link;
+  response = await page.request.patch(`/api/tv-links/${tvLink.id}`, {
+    data: {
+      label: "Refresh TV",
+      tournament_id: tournament.id,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+
+  await page.goto(`/tv/${tvCode}`);
+  await expect(page.getByText(tournamentName)).toBeVisible();
+  await expect(page.locator(".tv-meta-block").filter({ hasText: "Sida 1 av 3" })).toBeVisible();
+  await expect(page.locator(".tv-meta-block").filter({ hasText: "Sida 2 av 3" })).toBeVisible({ timeout: 12_000 });
+
+  response = await page.request.post(`/api/tournaments/${tournament.id}/participants`, {
+    data: { name: "Lag Extra", kind: "team", seed: 99 },
+  });
+  expect(response.ok()).toBeTruthy();
+
+  await page.waitForTimeout(1_500);
+  await expect(page.locator(".tv-meta-block").filter({ hasText: "Sida 2 av 3" })).toBeVisible();
+});

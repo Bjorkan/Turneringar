@@ -60,8 +60,6 @@ export function TvApp() {
       document.title = payload.bound ? `Live TV - ${payload.tournament.name}` : `Live TV - ${payload.tv_link.code}`;
       setData(payload);
       setError(null);
-      setActiveIndex(0);
-      setSecondsLeft(slideSeconds);
     } catch (caught) {
       setError(caught instanceof Error ? caught : new Error(String(caught)));
     }

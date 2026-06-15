@@ -98,6 +98,9 @@ Jag ändrade fixed-match-beräkningen i `services.schedule_matches()` så slutti
 
 17. Live TV hoppar tillbaka till slide 1 vid varje SSE-refresh. `load()` reset:ar `activeIndex` och `secondsLeft`; vid täta score/resultat/schedule-events kan publikskärmen fastna på första sliden. Se `frontend/src/tv/TvApp.tsx:53-60`, `frontend/src/tv/TvApp.tsx:84-99`.
 
+Status: Löst
+Jag tog bort nollställningen av `activeIndex` och `secondsLeft` från `load()` i `frontend/src/tv/TvApp.tsx`. Initial state startar fortfarande på slide 1, men efterföljande SSE-refresh uppdaterar bara payload, titel och felstatus. Det betyder att publikskärmen kan fortsätta sin naturliga rotation även när poäng, schema eller deltagare uppdateras tätt. Regressionstestet `frontend/tests/admin-flow.spec.ts::Live TV behåller aktiv slide vid SSE-refresh` väntar till slide 2, triggar en SSE-händelse och verifierar i Docker/Chromium att TV:n inte hoppar tillbaka till slide 1.
+
 18. Publik TV visar "Senaste aktivitet" från intern eventlogg. Kravet säger att Live TV inte ska visa interna notiser/arrangörsdelar. "Schema uppdaterat", "Livepoäng uppdaterad" osv. är arrangörshändelser, inte publik turneringsinformation. Se `frontend/src/tv/TvApp.tsx:239-245`, `backend/turneringar/main.py:91-92`.
 
 19. Slutspelsplaceholdern använder databas-ID som publik matchreferens: `Vinnare match 23`. Det är inte en begriplig bracketposition och blir extra rörigt efter regenerering. Se `backend/turneringar/services.py:237-238`.
