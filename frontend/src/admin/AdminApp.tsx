@@ -114,7 +114,7 @@ function roundTitle(round: RoundGroup): string {
 }
 
 function canScoreMatch(match: Match): boolean {
-  return Boolean(match.participant_a_id && match.participant_b_id);
+  return Boolean(match.participant_a_id && match.participant_b_id && match.status !== "completed");
 }
 
 function NoticeBox({ notice, onClear }: { notice: Notice; onClear: () => void }) {
@@ -750,6 +750,10 @@ function TournamentView({
   };
 
   const openScoreDialog = (match: Match) => {
+    if (match.status === "completed") {
+      onNotice("Avslutade matcher är låsta för resultatändring.", "warning");
+      return;
+    }
     if (!canScoreMatch(match)) {
       onNotice("Matchen saknar lag och kan inte poängrapporteras.", "danger");
       return;
@@ -1028,8 +1032,8 @@ function TournamentView({
                       <td>
                         <div className="row-action-buttons">
                           {canScoreMatch(match)
-                            ? <button type="button" className="button subtle" onClick={() => openScoreDialog(match)}>{match.status === "completed" ? "Resultat" : "Poäng"}</button>
-                            : <span className="form-hint compact">Inväntar lag</span>}
+                            ? <button type="button" className="button subtle" onClick={() => openScoreDialog(match)}>Poäng</button>
+                            : <span className="form-hint compact">{match.status === "completed" ? "Låst" : "Inväntar lag"}</span>}
                         </div>
                         <details className="row-actions">
                           <summary>Tid</summary>
@@ -1191,7 +1195,7 @@ function TournamentView({
               <label>{scoreDialog.side_b} <input name="score_b" type="number" min="0" required placeholder="0" defaultValue={scoreDialog.score_b == null ? "" : scoreDialog.score_b} aria-label="Poäng B" /></label>
               <div className="modal-actions">
                 <button type="submit" disabled={scoreDialog.status === "completed"}>Spara livepoäng</button>
-                <button type="button" className="button primary" onClick={(event) => void saveMatchScore(event, scoreDialog.id, true)}>Avsluta match</button>
+                <button type="button" className="button primary" disabled={scoreDialog.status === "completed"} onClick={(event) => void saveMatchScore(event, scoreDialog.id, true)}>Avsluta match</button>
                 <button type="button" className="button subtle" onClick={() => setScoreDialog(null)}>Avbryt</button>
               </div>
             </form>

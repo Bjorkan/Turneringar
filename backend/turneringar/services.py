@@ -609,6 +609,8 @@ def update_match_result(
     match = store.get_match(conn, match_id)
     if not match or match["tournament_id"] != tournament_id:
         raise ValueError("Matchen finns inte.")
+    if match["status"] == "completed":
+        raise ValueError("Matchen är redan avslutad.")
     if score_a < 0 or score_b < 0:
         raise ValueError("Poäng kan inte vara negativa.")
     if not match["participant_a_id"] or not match["participant_b_id"]:

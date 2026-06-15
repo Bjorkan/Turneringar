@@ -233,6 +233,22 @@ class TournamentServiceTests(unittest.TestCase):
         updated = store.get_match(self.conn, semifinal["id"])
         self.assertNotEqual("completed", updated["status"])
 
+    def test_completed_match_result_cannot_be_changed(self) -> None:
+        tournament_id = self.create_seeded_tournament()
+        services.generate_structure(self.conn, tournament_id)
+        match = next(
+            match
+            for match in store.list_matches(self.conn, tournament_id)
+            if match["stage_kind"] == "group"
+        )
+        services.update_match_result(self.conn, tournament_id, match["id"], 2, 1)
+
+        with self.assertRaisesRegex(ValueError, "redan avslutad"):
+            services.update_match_result(self.conn, tournament_id, match["id"], 9, 0)
+
+        updated = store.get_match(self.conn, match["id"])
+        self.assertEqual("2 - 1", updated["score_label"])
+
     def test_single_member_groups_seed_and_advance_byes_after_generate(self) -> None:
         tournament_id = self.create_seeded_tournament(
             participant_count=3,

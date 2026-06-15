@@ -96,6 +96,8 @@ test("admin kan klicka igenom huvudflödet, liveuppdatera och avsluta match", as
   await expect(page.getByRole("status")).toContainText("Match avslutad.");
   await expect(row).toContainText("Avslutad");
   await expect(row).toContainText("2 - 1");
+  await expect(row).toContainText("Låst");
+  await expect(row.getByRole("button", { name: "Poäng" })).toHaveCount(0);
 });
 
 test("moderatorvy och Live TV laddar från samma frontendbygge", async ({ page }) => {
