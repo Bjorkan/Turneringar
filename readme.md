@@ -5,7 +5,7 @@ Turneringar är ett lokalt webbprogram för att hantera event med lag/spelare, g
 Projektet är separerat i:
 
 - `backend/` - FastAPI, SQLite, migrations, API och Server-Sent Events.
-- `frontend/` - statisk HTML/CSS/Vue som kommunicerar med backend via `/api/...`. Vue-koden skrivs i TypeScript under `frontend/src/` och byggs till `frontend/static/`.
+- `frontend/` - React/Vite-frontend som kommunicerar med backend via `/api/...`. React-koden skrivs i TypeScript under `frontend/src/` och byggs till statiska filer i `frontend/static/`.
 
 ## Kör lokalt
 
@@ -76,9 +76,10 @@ Pytest-sviten innehåller både kärnlogiktester och end-to-end API-tester som s
 - `backend/turneringar/store.py` innehåller SQLite-frågor och repository-logik.
 - `backend/turneringar/services.py` innehåller bracketgenerering, tabeller, schemaläggning och resultatpropagering.
 - `backend/turneringar/realtime.py` hanterar Server-Sent Events.
-- `frontend/src/app.ts` driver admin- och moderatorvyerna via JSON API och kompileras till `frontend/static/app.js`.
-- `frontend/src/tv.ts` driver Live TV-vyn via kodbaserat JSON API och SSE och kompileras till `frontend/static/tv.js`.
-- `frontend/static/vendor/vue.global.prod.js` är en lokal Vue 3-runtime så klienten fungerar utan extern CDN.
+- `frontend/src/admin/AdminApp.tsx` driver admin- och moderatorvyerna via JSON API.
+- `frontend/src/tv/TvApp.tsx` driver Live TV-vyn via kodbaserat JSON API och SSE.
+- `frontend/public/app.css` är käll-CSS som Vite kopierar till `/assets/app.css`.
+- `frontend/vite.config.ts` bygger entrypoints till `/assets/app.js`, `/assets/tv.js` och delade chunks under `/assets/chunks/`.
 
 ## GitHub
 

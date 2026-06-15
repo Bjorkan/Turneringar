@@ -2,6 +2,8 @@
 
 ## 2026-06-15
 
+- Migrerade frontend från Vue-runtime till React/Vite med separata TSX-entrypoints för admin/moderator och Live TV.
+- Uppdaterade Docker-, CI- och assettester för React-bygget och rensade bort den vendrade Vue-runtimefilen.
 - Lade till instansnivåbaserade Live TV-länkar med 10-teckenskoder, `/tv/{CODE}`-URL:er och adminhantering under `/admin/tv`.
 - Lade till live-bindning av TV-länkar till turnering eller specifik resurs samt väntläge för obundna skärmar.
 - Uppdaterade Live TV-klienten till kodbaserat API/SSE och rensade publikvyn från interna regler, notiser och platsvägledning.

@@ -1,4 +1,4 @@
-name: Test, build and publish
+name: Testa, bygg och publicera
 
 on:
   push:
@@ -12,46 +12,58 @@ permissions:
   packages: write
 
 jobs:
-  test:
+  kvalitet:
+    name: Kvalitet och tester
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Hämta källkod
+        uses: actions/checkout@v4
+
+      - name: Installera Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - uses: actions/setup-node@v4
+
+      - name: Installera Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: Install dependencies
+
+      - name: Installera backend-beroenden
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
-      - name: Install frontend dependencies
-        run: npm install --no-audit --no-fund
-      - name: Install frontend browser
+
+      - name: Installera frontend-beroenden
+        run: npm ci --no-audit --no-fund
+
+      - name: Installera Playwright Chromium
         run: npx playwright install --with-deps chromium
-      - name: Typecheck frontend
+
+      - name: Typechecka React-frontenden
         run: npm run typecheck
-      - name: Build frontend
+
+      - name: Bygg React-frontenden
         run: npm run build:frontend
-      - name: Run tests
+
+      - name: Kör backendtester
         run: python -m pytest -q
-      - name: Run frontend browser tests
+
+      - name: Kör webbläsartester
         run: npm run test:frontend
 
-  docker:
+  docker_smoke:
+    name: Bygg och smoke-testa Docker-image
     runs-on: ubuntu-latest
-    needs: test
+    needs: kvalitet
     steps:
-      - uses: actions/checkout@v4
+      - name: Hämta källkod
+        uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build Docker image for smoke test
+      - name: Bygg lokal testimage
         run: docker build -t turneringar:test .
 
-      - name: Smoke test Docker image
+      - name: Smoke-testa testimagen
         run: |
           docker run -d --name turneringar-test -p 8000:8000 \
             -e ADMIN_PIN=test-pin \
@@ -68,13 +80,28 @@ jobs:
           curl --fail --silent http://127.0.0.1:8000/ > /tmp/index.html
           curl --fail --silent http://127.0.0.1:8000/assets/app.js > /tmp/app.js
           curl --fail --silent http://127.0.0.1:8000/assets/tv.js > /tmp/tv.js
-          curl --fail --silent http://127.0.0.1:8000/assets/vendor/vue.global.prod.js > /tmp/vue.js
+          chunk_ref=$(grep -o '\./chunks/[^"]*\.js' /tmp/app.js | head -n 1)
+          chunk_path="/assets/chunks/${chunk_ref#./chunks/}"
+          test -n "$chunk_path"
+          curl --fail --silent "http://127.0.0.1:8000${chunk_path}" > /tmp/react-chunk.js
           test -s /tmp/index.html
           test -s /tmp/app.js
           test -s /tmp/tv.js
-          test -s /tmp/vue.js
+          test -s /tmp/react-chunk.js
 
-      - name: Docker metadata
+  publicera:
+    name: Publicera Docker-image
+    runs-on: ubuntu-latest
+    needs: docker_smoke
+    if: github.event_name == 'push' || github.event_name == 'release'
+    steps:
+      - name: Hämta källkod
+        uses: actions/checkout@v4
+
+      - name: Förbered Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Skapa Docker-taggar
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -84,29 +111,26 @@ jobs:
           tags: |
             type=raw,value=edge,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
             type=raw,value=latest,enable=${{ github.event_name == 'release' }}
-            type=raw,value=pr-${{ github.event.number }},enable=${{ github.event_name == 'pull_request' }}
 
-      - name: Log in to GitHub Container Registry
-        if: github.event_name == 'push' || github.event_name == 'release'
+      - name: Logga in i GitHub Packages
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Log in to Docker Hub
-        if: github.event_name == 'push' || github.event_name == 'release'
+      - name: Logga in i Docker Hub
         uses: docker/login-action@v3
         with:
           username: bjorkan
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and optionally publish image
+      - name: Bygg och publicera image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
-          push: ${{ github.event_name == 'push' || github.event_name == 'release' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha

@@ -45,7 +45,7 @@ async function addResource(page: Page, name: string) {
   await form.locator('input[name="name"]').fill(name);
   await form.locator('select[name="kind"]').selectOption("court");
   await form.getByRole("button", { name: "Lägg till" }).click();
-  await expect(page.locator("#schema table")).toContainText(name);
+  await expect(page.locator("#schema")).toContainText(name);
 }
 
 async function prepareScheduledTournament(page: Page) {
@@ -108,11 +108,10 @@ test("moderatorvy och Live TV laddar från samma frontendbygge", async ({ page }
   await moderatorForm.getByRole("button", { name: "Skapa länk" }).click();
   await expect(page.getByRole("status")).toContainText("Moderatorlänk skapad.");
 
-  const moderatorCard = page.locator("#moderatorer .mini-list article").filter({ hasText: "Domare Plan 1" }).first();
+  const moderatorCard = page.locator(".moderator-links-panel tbody tr").filter({ hasText: "Domare Plan 1" }).first();
   await expect(moderatorCard).toBeVisible();
 
-  const pinText = await moderatorCard.locator("small").innerText();
-  const pin = /PIN\s+(\d+)/.exec(pinText)?.[1];
+  const pin = (await moderatorCard.locator("code").innerText()).trim();
   if (!pin) throw new Error("Moderator-PIN saknas i UI:t.");
 
   const href = await moderatorCard.getByRole("link", { name: "Öppna" }).getAttribute("href");
@@ -122,9 +121,9 @@ test("moderatorvy och Live TV laddar från samma frontendbygge", async ({ page }
   await expect(page.getByRole("heading", { name: "Moderator-PIN" })).toBeVisible();
   await page.locator('input[name="pin"]').fill(pin);
   await page.getByRole("button", { name: "Öppna" }).click();
-  await expect(page.getByRole("heading", { name: "Rapportera resultat" })).toBeVisible();
+  await expect(page.locator(".moderator-match-card").first()).toBeVisible();
 
-  const resultForm = page.locator(".moderator-result-form").first();
+  const resultForm = page.locator(".moderator-score-card").first();
   await resultForm.locator('input[name="score_a"]').fill("3");
   await resultForm.locator('input[name="score_b"]').fill("0");
   await resultForm.getByRole("button", { name: "Spara livepoäng" }).click();
@@ -132,7 +131,7 @@ test("moderatorvy och Live TV laddar från samma frontendbygge", async ({ page }
 
   const tvCode = `TV${Date.now().toString().slice(-8)}`;
   await page.goto("/admin/tv");
-  await expect(page.getByRole("heading", { name: "Live TV" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Live TV", exact: true })).toBeVisible();
 
   const tvForm = page.locator("#new-tv-link form");
   await tvForm.locator('input[name="label"]').fill("Publik skärm");

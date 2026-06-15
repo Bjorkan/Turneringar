@@ -1,24 +1,43 @@
 .git
 .github
+
+# Python local state
 .venv
+venv/
+env/
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
-.tmp/
 .coverage
 htmlcov/
-.env
-.DS_Store
-.idea/
-.vscode/
+
+# Node and frontend build output
 node_modules/
-package-lock.json
+frontend/node_modules/
+frontend/dist/
+frontend/static/
+*.tsbuildinfo
+
+# Test and runtime output
+.tmp/
 playwright-report/
 test-results/
 data/
 backend/data/
 *.sqlite3
 *.sqlite3-*
+*.db
+*.db-*
+
+# Local files not needed in the image
+.env
+.env.*
+!.env.example
+.DS_Store
+.idea/
+.vscode/
 inspiration/
+docker-compose.yml
+compose.yaml

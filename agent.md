@@ -22,8 +22,8 @@ Bygg en robust lokal eventserver för turneringar. Prioritera tydliga arbetsflö
 - Ändra schema via nya filer i `backend/migrations/`; modifiera inte redan tillämpade migrationer efter release.
 - Frontend ska kommunicera med backend via `/api/...` och inte serverrenderas med templates.
 - Live TV-klienten ska läsa via `/api/tv/{CODE}` och prenumerera på `/api/tv/{CODE}/events`; gamla turnerings-ID-baserade TV-rutter får bara finnas för bakåtkompatibilitet.
-- Frontend skrivs i TypeScript under `frontend/src/`, byggs med `npm run build:frontend` och levereras som statiska filer under `frontend/static/`.
-- Använd lokalt vendrad Vue 3-runtime från `frontend/static/vendor/vue.global.prod.js`; hämta inte Vue från CDN i produktion.
+- Frontend skrivs i React och TypeScript under `frontend/src/`, byggs med `npm run build:frontend` via Vite och levereras som statiska filer under `frontend/static/`.
+- React-bygget ska leverera stabila entrypoints `/assets/app.js` och `/assets/tv.js`; delade bundlefiler får ligga under `/assets/chunks/`.
 - Realtidsuppdateringar ska gå genom `backend/turneringar/realtime.py` och Server-Sent Events.
 - Dockercontainern ska köra hela appen i en container, exponera port `8000` och lägga persistent data under `/data/turneringar/`.
 - Docker-images publiceras till `ghcr.io/bjorkan/turneringar` och `bjorkan/turneringar`; `main` blir `edge` och GitHub Releases blir `latest`.

@@ -3,16 +3,17 @@
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
     "alwaysStrict": true,
+    "jsx": "react-jsx",
     "lib": ["DOM", "DOM.Iterable", "ES2020"],
-    "module": "none",
-    "noEmitOnError": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
-    "outDir": "frontend/static",
-    "removeComments": false,
-    "rootDir": "frontend/src",
     "skipLibCheck": true,
-    "target": "ES2020"
+    "strict": true,
+    "target": "ES2020",
+    "useDefineForClassFields": true
   },
-  "files": ["frontend/src/vue.d.ts", "frontend/src/app.ts", "frontend/src/tv.ts"]
+  "include": ["src"]
 }

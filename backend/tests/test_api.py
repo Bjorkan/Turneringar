@@ -292,4 +292,3 @@ def test_static_frontends_are_served(client: ApiClient) -> None:
     assert client.get("/tv/123").status_code == 200
     assert client.get("/assets/app.js").status_code == 200
     assert client.get("/assets/tv.js").status_code == 200
-    assert client.get("/assets/vendor/vue.global.prod.js").status_code == 200

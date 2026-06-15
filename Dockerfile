@@ -2,10 +2,11 @@ FROM node:20-slim AS frontend-builder
 
 WORKDIR /app
 
-COPY package.json tsconfig.frontend.json ./
-COPY frontend/src ./frontend/src
-RUN npm install --no-audit --no-fund \
-    && npm run build:frontend
+COPY package.json package-lock.json ./
+COPY frontend/package.json ./frontend/package.json
+RUN npm ci --no-audit --no-fund
+COPY frontend ./frontend
+RUN npm run build:frontend
 
 FROM python:3.12-slim
 
@@ -21,10 +22,7 @@ RUN python -m pip install --no-cache-dir --upgrade pip \
 
 COPY backend ./backend
 COPY frontend/index.html frontend/tv.html ./frontend/
-COPY frontend/static/app.css ./frontend/static/app.css
-COPY frontend/static/vendor ./frontend/static/vendor
-COPY --from=frontend-builder /app/frontend/static/app.js ./frontend/static/app.js
-COPY --from=frontend-builder /app/frontend/static/tv.js ./frontend/static/tv.js
+COPY --from=frontend-builder /app/frontend/static ./frontend/static
 
 RUN mkdir -p /data/turneringar
 

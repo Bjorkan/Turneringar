@@ -2,13 +2,15 @@
   "name": "turneringar",
   "private": true,
   "version": "0.1.0",
+  "workspaces": [
+    "frontend"
+  ],
   "scripts": {
-    "typecheck": "tsc -p tsconfig.frontend.json --noEmit",
-    "build:frontend": "tsc -p tsconfig.frontend.json",
+    "typecheck": "npm run typecheck --workspace frontend",
+    "build:frontend": "npm run build --workspace frontend",
     "test:frontend": "playwright test"
   },
   "devDependencies": {
-    "@playwright/test": "1.48.2",
-    "typescript": "5.6.3"
+    "@playwright/test": "1.48.2"
   }
 }

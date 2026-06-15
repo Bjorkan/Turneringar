@@ -10,25 +10,35 @@ def read(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
-def test_frontend_uses_vue_and_typescript_sources() -> None:
+def test_frontend_uses_react_and_vite_sources() -> None:
     index = read("frontend/index.html")
     tv = read("frontend/tv.html")
-    app_ts = read("frontend/src/app.ts")
-    tv_ts = read("frontend/src/tv.ts")
+    main_tsx = read("frontend/src/admin/main.tsx")
+    admin_app = read("frontend/src/admin/AdminApp.tsx")
+    tv_tsx = read("frontend/src/tv/main.tsx")
+    tv_app = read("frontend/src/tv/TvApp.tsx")
+    vite_config = read("frontend/vite.config.ts")
+    app_css = read("frontend/public/app.css")
     frontend_test = read("frontend/tests/admin-flow.spec.ts")
 
-    assert "/assets/vendor/vue.global.prod.js" in index
-    assert "/assets/vendor/vue.global.prod.js" in tv
-    assert "createApp" in app_ts
-    assert "createApp" in tv_ts
+    assert 'type="module" src="/assets/app.js"' in index
+    assert 'type="module" src="/assets/tv.js"' in tv
+    assert "createRoot" in main_tsx + tv_tsx
+    assert "React" in main_tsx + tv_tsx
+    assert "useState" in admin_app + tv_app
+    assert "@vitejs/plugin-react" in vite_config
+    assert "src/admin/main.tsx" in vite_config
+    assert "src/tv/main.tsx" in vite_config
+    assert "admin-shell" in app_css
     assert "playwright/test" in frontend_test
-    assert "React" not in index + tv + app_ts + tv_ts
+    assert "Vue" not in index + tv + main_tsx + admin_app + tv_tsx + tv_app
 
 
 def test_frontend_static_outputs_exist() -> None:
+    assert (ROOT / "frontend/static/app.css").is_file()
     assert (ROOT / "frontend/static/app.js").is_file()
     assert (ROOT / "frontend/static/tv.js").is_file()
-    assert (ROOT / "frontend/static/vendor/vue.global.prod.js").is_file()
+    assert (ROOT / "frontend/static/chunks").is_dir()
 
 
 def test_container_contract_is_documented_in_dockerfile() -> None:
@@ -42,6 +52,15 @@ def test_container_contract_is_documented_in_dockerfile() -> None:
 def test_ci_runs_strict_build_test_and_publish_checks() -> None:
     workflow = read(".github/workflows/ci.yml")
 
+    assert "name: Testa, bygg och publicera" in workflow
+    assert "name: Kvalitet och tester" in workflow
+    assert "name: Bygg och smoke-testa Docker-image" in workflow
+    assert "name: Publicera Docker-image" in workflow
+    assert "Installera backend-beroenden" in workflow
+    assert "Bygg React-frontenden" in workflow
+    assert "Smoke-testa testimagen" in workflow
+    assert "Logga in i GitHub Packages" in workflow
+    assert "Logga in i Docker Hub" in workflow
     assert "npm run typecheck" in workflow
     assert "npm run build:frontend" in workflow
     assert "npx playwright install --with-deps chromium" in workflow
@@ -51,7 +70,10 @@ def test_ci_runs_strict_build_test_and_publish_checks() -> None:
     assert "http://127.0.0.1:8000/api/session" in workflow
     assert "http://127.0.0.1:8000/assets/app.js" in workflow
     assert "http://127.0.0.1:8000/assets/tv.js" in workflow
+    assert "/assets/chunks/" in workflow
     assert "ghcr.io/bjorkan/turneringar" in workflow
     assert "bjorkan/turneringar" in workflow
+    assert "if: github.event_name == 'push' || github.event_name == 'release'" in workflow
     assert "type=raw,value=edge" in workflow
+    assert "github.ref == 'refs/heads/main'" in workflow
     assert "type=raw,value=latest" in workflow
