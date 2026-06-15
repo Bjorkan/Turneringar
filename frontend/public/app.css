@@ -1671,7 +1671,7 @@ body.tv {
 
 .live-layout {
   grid-template-columns: 1.08fr 1fr;
-  grid-template-rows: minmax(0, 1fr) 250px;
+  grid-template-rows: minmax(0, 1fr) 320px;
 }
 
 .live-layout .tv-map {
@@ -1716,6 +1716,11 @@ body.tv {
   font-size: 30px;
 }
 
+.tv-feature {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
 .feature-head {
   display: flex;
   align-items: center;
@@ -1747,15 +1752,24 @@ body.tv {
   grid-template-columns: minmax(0, 1fr) 94px minmax(0, 1fr);
   align-items: center;
   gap: 28px;
-  min-height: 220px;
+  min-height: 0;
   border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+  padding: 18px 0;
   text-align: center;
 }
 
 .feature-match strong {
   overflow-wrap: anywhere;
-  font-size: 66px;
-  line-height: 1;
+}
+
+.team-block strong {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 54px;
+  line-height: 1.02;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .feature-match span {
@@ -1799,7 +1813,7 @@ body.tv {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
-  margin: 26px 0;
+  margin: 22px 0 0;
 }
 
 .feature-facts div {
@@ -1824,6 +1838,7 @@ body.tv {
   color: #f8fbff;
   font-size: 25px;
   font-weight: 850;
+  overflow-wrap: anywhere;
 }
 
 .feature-score {
@@ -1906,6 +1921,21 @@ body.tv {
 
 .result-table .tv-row {
   grid-template-columns: 110px minmax(0, 1fr) 110px;
+}
+
+.tv-results .tv-row {
+  grid-template-columns: 92px minmax(0, 1fr) 92px;
+  min-height: 54px;
+  font-size: 19px;
+}
+
+.tv-results .tv-row strong {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 21px;
+  line-height: 1.12;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .arena-guide {

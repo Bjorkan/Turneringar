@@ -48,6 +48,9 @@ Jag ändrade mobilreglerna i `frontend/public/app.css` så adminskalet blir en k
 
 7. Live TV klipper innehåll på riktig TV-storlek med långa namn. På 1920x1080 syns feature-facts/resultatdelen delvis kapad när lagnamn blir långa. `.tv-panel { overflow: hidden }`, fast deck-höjd och 66px lagnamn gör att innehåll försvinner. Screenshot: `.tmp/review-screens/tv-public-1920.png`. Se `frontend/src/tv/TvApp.tsx:156-196`, `frontend/public/app.css:1584-1595`, `frontend/public/app.css:1666-1703`, `frontend/public/app.css:1745-1803`.
 
+Status: Löst
+Jag gjorde featurepanelen i `frontend/public/app.css` till en intern grid med rubrik, matchyta och fakta som får dela på höjden utan att fakta trycks bort. De stora lagnamnen i TV-feature begränsas nu till tre rader med ellipsis och mindre fast typstorlek, vilket stoppar långa obrutna namn från att växa genom panelen. Live-slidens resultatdel fick mer radutrymme och kompaktare resultatlistor med tvåradig ellipsis, så även den nedre panelen ryms på 1920x1080. Regressionstestet `frontend/tests/admin-flow.spec.ts::Live TV rymmer långa lagnamn på 1920-skärm` bygger en TV-länk med långa namn och kontrollerar i Docker/Chromium att aktiva TV-paneler inte har dold overflow.
+
 8. Live TV tappar data utan indikator. Den visar bara 5 kommande matcher, 8 schemarader, 2 grupper, 4 rader per tabell, 4 resurser och 5 senaste resultat/event. Det finns ingen "... och fler"-markering, pagination eller extra slide. I en turnering med tre grupper visades Grupp C inte i tabellsliden. Se `frontend/src/tv/TvApp.tsx:117-123`, `frontend/src/tv/TvApp.tsx:207-214`, `frontend/src/tv/TvApp.tsx:258-279`.
 
 9. Slutspelsseeding kan para ihop lag från samma grupp direkt i första slutspelsrundan trots att det går att undvika. Repro med 3 grupper och 2 vidare gav `Grupp C #1 vs Grupp C #2`. Se `backend/turneringar/services.py:134-144`, `backend/turneringar/services.py:185-213`.

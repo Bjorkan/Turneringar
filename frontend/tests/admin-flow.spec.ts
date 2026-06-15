@@ -168,3 +168,73 @@ test("mobil adminvy börjar med toppbar och dold sidomeny", async ({ page }) => 
   if (!topbarBox || !sidebarBox) throw new Error("Mobilnavigationens layout kunde inte mätas.");
   expect(sidebarBox.y).toBeGreaterThanOrEqual(topbarBox.y + topbarBox.height - 1);
 });
+
+test("Live TV rymmer långa lagnamn på 1920-skärm", async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await loginAsAdmin(page);
+
+  const tournamentName = `TV Overflow Cup ${Date.now()}`;
+  let response = await page.request.post("/api/tournaments", {
+    data: {
+      name: tournamentName,
+      starts_at: "2026-06-14T10:00",
+      group_count: 2,
+      qualifiers_per_group: 1,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+  const tournament = await response.json() as { id: number };
+
+  const participantNames = [
+    "SuperlångtTävlingslagNorrköpingVästraBananAlpha",
+    "ExtremtLångtMotståndarlagGöteborgÖstraSektionenBeta",
+    "TurneringsfavoriternaMedVäldigtLångtNamnGamma",
+    "PublikfavoritlagetMedObrutetNamnDelta",
+  ];
+  for (const [index, name] of participantNames.entries()) {
+    response = await page.request.post(`/api/tournaments/${tournament.id}/participants`, {
+      data: { name, kind: "team", seed: index + 1 },
+    });
+    expect(response.ok()).toBeTruthy();
+  }
+
+  response = await page.request.post(`/api/tournaments/${tournament.id}/resources`, {
+    data: { name: "CentercourtenMedLångtNamn", kind: "court" },
+  });
+  expect(response.ok()).toBeTruthy();
+  const resource = await response.json() as { id: number };
+
+  response = await page.request.post(`/api/tournaments/${tournament.id}/generate`, { data: {} });
+  expect(response.ok()).toBeTruthy();
+  response = await page.request.post(`/api/tournaments/${tournament.id}/schedule`, { data: {} });
+  expect(response.ok()).toBeTruthy();
+
+  const tvCode = `TV${Date.now().toString().slice(-8)}`;
+  response = await page.request.post("/api/tv-links", { data: { label: "Overflow TV", code: tvCode } });
+  expect(response.ok()).toBeTruthy();
+  const tvLink = (await response.json() as { tv_link: { id: number } }).tv_link;
+  response = await page.request.patch(`/api/tv-links/${tvLink.id}`, {
+    data: {
+      label: "Overflow TV",
+      tournament_id: tournament.id,
+      resource_id: resource.id,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+
+  await page.goto(`/tv/${tvCode}`);
+  await expect(page.getByText(tournamentName)).toBeVisible();
+
+  const overflow = await page.evaluate(() => {
+    const panels = Array.from(document.querySelectorAll<HTMLElement>(".tv-slide.active .tv-panel"));
+    return panels.flatMap((panel) => {
+      const box = panel.getBoundingClientRect();
+      const outsideViewport = box.left < -1 || box.top < -1 || box.right > window.innerWidth + 1 || box.bottom > window.innerHeight + 1;
+      const clippedContent = panel.scrollHeight > panel.clientHeight + 1 || panel.scrollWidth > panel.clientWidth + 1;
+      return outsideViewport || clippedContent
+        ? [`${panel.className}: ${panel.scrollWidth}x${panel.scrollHeight} in ${panel.clientWidth}x${panel.clientHeight}`]
+        : [];
+    });
+  });
+  expect(overflow).toEqual([]);
+});
