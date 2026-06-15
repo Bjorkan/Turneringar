@@ -93,6 +93,9 @@ Jag lade en backendspärr i `services.update_match_result()` som stoppar resulta
 
 16. Autoschemaläggaren reserverar fel tid för fixed matches. För completed/in_progress-matcher används turneringens nuvarande `match_minutes`, inte matchens faktiska `duration_minutes`. Om en match har manuell duration kan efterföljande autoschema skapa krockar. Se `backend/turneringar/services.py:347-363`, `backend/turneringar/services.py:407-420`.
 
+Status: Löst
+Jag ändrade fixed-match-beräkningen i `services.schedule_matches()` så sluttiden baseras på matchens egen `duration_minutes`. Turneringens `match_minutes` används fortfarande som fallback om en äldre rad saknar duration, men manuella tider med annan längd reserverar nu rätt tid. Det gör att efterföljande autoschemaläggning inte placerar en ny match ovanpå en pågående eller avslutad match med speciallängd. Regressionstestet `backend/tests/test_services.py::TournamentServiceTests::test_rescheduling_reserves_fixed_match_duration` låser en 90-minutersmatch och verifierar att nästa match tidigast hamnar efter 90 minuter plus paus.
+
 17. Live TV hoppar tillbaka till slide 1 vid varje SSE-refresh. `load()` reset:ar `activeIndex` och `secondsLeft`; vid täta score/resultat/schedule-events kan publikskärmen fastna på första sliden. Se `frontend/src/tv/TvApp.tsx:53-60`, `frontend/src/tv/TvApp.tsx:84-99`.
 
 18. Publik TV visar "Senaste aktivitet" från intern eventlogg. Kravet säger att Live TV inte ska visa interna notiser/arrangörsdelar. "Schema uppdaterat", "Livepoäng uppdaterad" osv. är arrangörshändelser, inte publik turneringsinformation. Se `frontend/src/tv/TvApp.tsx:239-245`, `backend/turneringar/main.py:91-92`.

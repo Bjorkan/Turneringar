@@ -415,7 +415,8 @@ def schedule_matches(conn: sqlite3.Connection, tournament_id: int) -> None:
                 and match["resource_id"]
             )
             if is_fixed:
-                end_at = parse_local_datetime(match["scheduled_at"]) + duration + break_time
+                fixed_duration = timedelta(minutes=match["duration_minutes"] or tournament["match_minutes"])
+                end_at = parse_local_datetime(match["scheduled_at"]) + fixed_duration + break_time
                 resource_available[match["resource_id"]] = max(
                     resource_available[match["resource_id"]],
                     end_at,

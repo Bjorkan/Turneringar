@@ -288,6 +288,41 @@ class TournamentServiceTests(unittest.TestCase):
         self.assertEqual(match["scheduled_at"], updated["scheduled_at"])
         self.assertEqual(match["resource_id"], updated["resource_id"])
 
+    def test_rescheduling_reserves_fixed_match_duration(self) -> None:
+        tournament_id = self.create_seeded_tournament(
+            participant_count=4,
+            resource_count=1,
+            group_count=2,
+            qualifiers_per_group=1,
+        )
+        services.generate_structure(self.conn, tournament_id)
+        resource = store.list_resources(self.conn, tournament_id)[0]
+        group_matches = [
+            match
+            for match in store.list_matches(self.conn, tournament_id)
+            if match["stage_kind"] == "group"
+        ]
+        fixed_match, next_match = group_matches[0], group_matches[1]
+
+        errors = services.apply_manual_slot(
+            self.conn,
+            tournament_id,
+            fixed_match["id"],
+            resource["id"],
+            "2026-06-13T09:00",
+            90,
+        )
+        self.assertEqual([], errors)
+        services.update_match_score(self.conn, tournament_id, fixed_match["id"], 1, 1)
+
+        services.schedule_matches(self.conn, tournament_id)
+
+        updated_next = store.get_match(self.conn, next_match["id"])
+        self.assertGreaterEqual(
+            services.parse_local_datetime(updated_next["scheduled_at"]),
+            services.parse_local_datetime("2026-06-13T10:35"),
+        )
+
     def test_manual_override_rejects_resource_conflict(self) -> None:
         tournament_id = self.create_seeded_tournament(participant_count=6, resource_count=2)
         services.generate_structure(self.conn, tournament_id)
