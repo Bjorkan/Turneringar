@@ -1679,7 +1679,7 @@ body.tv {
 }
 
 .tables-layout {
-  grid-template-columns: 1.05fr 1.18fr 0.46fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 
 .schedule-layout {

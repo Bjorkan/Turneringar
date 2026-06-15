@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../shared/api";
 import {
-  eventText,
   formatClock,
   formatDate,
   initials,
@@ -37,10 +36,6 @@ function statusLabel(status?: string | null): string {
 function roundTitle(round: RoundGroup): string {
   const first = round.matches[0];
   return first ? first.name.replace(/\s+\d+$/, "") : `Runda ${round.round}`;
-}
-
-function eventLabel(kind: string): string {
-  return eventText[kind] || kind;
 }
 
 function moreText(count: number, singular: string, plural: string): string {
@@ -131,9 +126,6 @@ export function TvApp() {
   const recentSource = data?.recent_matches || [];
   const recentMatches = recentSource.slice(0, 5);
   const hiddenRecentCount = Math.max(0, recentSource.length - recentMatches.length);
-  const events = data?.events || [];
-  const visibleEvents = events.slice(0, 5);
-  const hiddenEventCount = Math.max(0, events.length - visibleEvents.length);
   const knockoutRounds: RoundGroup[] = [...new Set(matches.filter((match) => match.stage_kind === "knockout").map((match) => Number(match.round)))]
     .sort((a, b) => a - b)
     .map((round) => ({
@@ -251,17 +243,6 @@ export function TvApp() {
                   ))}
                 </div>
               ) : null}
-            </section>
-
-            <section className="tv-panel tv-ticker">
-              <h2>Senaste aktivitet</h2>
-              <div className="tv-ticker-list">
-                {!events.length ? <p className="tv-empty">Inga händelser ännu.</p> : null}
-                {visibleEvents.map((event) => (
-                  <article key={event.id}><span className="notice-dot" /><div><strong>{eventLabel(event.kind)}</strong><small>{formatDate(event.created_at, { hour: "2-digit", minute: "2-digit" })}</small></div></article>
-                ))}
-                {hiddenEventCount ? <p className="tv-more">{moreText(hiddenEventCount, "händelse", "händelser")}</p> : null}
-              </div>
             </section>
           </div>
         </section>

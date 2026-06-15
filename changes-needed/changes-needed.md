@@ -103,6 +103,9 @@ Jag tog bort nollställningen av `activeIndex` och `secondsLeft` från `load()` 
 
 18. Publik TV visar "Senaste aktivitet" från intern eventlogg. Kravet säger att Live TV inte ska visa interna notiser/arrangörsdelar. "Schema uppdaterat", "Livepoäng uppdaterad" osv. är arrangörshändelser, inte publik turneringsinformation. Se `frontend/src/tv/TvApp.tsx:239-245`, `backend/turneringar/main.py:91-92`.
 
+Status: Löst
+Den publika TV-payloaden töms redan på `events` av den tidigare publika payload-saneringen. Jag tog nu också bort hela “Senaste aktivitet”-panelen från `frontend/src/tv/TvApp.tsx`, så publik-TV inte längre renderar arrangörslogg eller tom aktivitetsyta. `frontend/public/app.css` ändrades så tabell/slutspels-sliden använder två kolumner i stället för att lämna plats för den borttagna panelen. Regressionen ligger i Docker/Chromium-testen `moderatorvy och Live TV laddar från samma frontendbygge`, som nu verifierar att `.tv-stage` inte innehåller texten `Senaste aktivitet`.
+
 19. Slutspelsplaceholdern använder databas-ID som publik matchreferens: `Vinnare match 23`. Det är inte en begriplig bracketposition och blir extra rörigt efter regenerering. Se `backend/turneringar/services.py:237-238`.
 
 20. Live TV visar resource kind på engelska/rådatabasvärde (`COURT`, `SERVER`) i stället för svensk label (`Spelplan`, `Server`, `Bord`). Screenshot: `.tmp/review-screens/tv-public-slide3-1920.png`. Se `frontend/src/tv/TvApp.tsx:278-279`.

@@ -152,6 +152,7 @@ test("moderatorvy och Live TV laddar från samma frontendbygge", async ({ page }
   await expect(page.getByText(tournamentName)).toBeVisible();
   await expect(page.locator(".tv-stage")).toContainText("Lag");
   await expect(page.locator(".tv-stage")).toContainText("3 - 0");
+  await expect(page.locator(".tv-stage")).not.toContainText("Senaste aktivitet");
 });
 
 test("mobil adminvy börjar med toppbar och dold sidomeny", async ({ page }) => {
