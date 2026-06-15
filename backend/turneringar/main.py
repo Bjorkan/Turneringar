@@ -96,6 +96,13 @@ def dashboard_payload(tournament_id: int) -> dict[str, Any]:
         }
 
 
+def public_tv_dashboard_payload(tournament_id: int) -> dict[str, Any]:
+    payload = dashboard_payload(tournament_id)
+    payload["moderators"] = []
+    payload["events"] = []
+    return payload
+
+
 def filter_tv_payload_by_resource(payload: dict[str, Any], resource_id: int | None) -> dict[str, Any]:
     if resource_id is None:
         return payload
@@ -124,7 +131,7 @@ def tv_payload(code: str) -> dict[str, Any]:
             "bound": False,
             "message": "Ansluten, väntar på information",
         }
-    payload = dashboard_payload(int(tv_link["tournament_id"]))
+    payload = public_tv_dashboard_payload(int(tv_link["tournament_id"]))
     payload = filter_tv_payload_by_resource(payload, tv_link.get("resource_id"))
     payload["tv_link"] = tv_link
     payload["bound"] = True
@@ -228,7 +235,8 @@ def tournament_dashboard(request: Request, tournament_id: int) -> dict[str, Any]
 
 
 @app.get("/api/tournaments/{tournament_id}/tv")
-def tournament_tv(tournament_id: int) -> dict[str, Any]:
+def tournament_tv(request: Request, tournament_id: int) -> dict[str, Any]:
+    require_admin(request)
     return dashboard_payload(tournament_id)
 
 

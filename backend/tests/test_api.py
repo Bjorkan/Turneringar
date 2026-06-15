@@ -242,20 +242,6 @@ def test_full_admin_tv_and_moderator_flow(client: ApiClient) -> None:
     assert response.status_code == 200
     assert response.json()["tv_link"]["resource_id"] == data["resources"][0]["id"]
 
-    public_tv_payload = client.get("/api/tv/TVLINK0001")
-    assert public_tv_payload.status_code == 200
-    public_tv_data = public_tv_payload.json()
-    assert public_tv_data["bound"] is True
-    assert public_tv_data["tournament"]["id"] == tournament_id
-    assert public_tv_data["resources"] == [data["resources"][0]]
-    assert all(match["resource_id"] == data["resources"][0]["id"] for match in public_tv_data["matches"])
-
-    tv_payload = client.get(f"/api/tournaments/{tournament_id}/tv")
-    assert tv_payload.status_code == 200
-    tv_data = tv_payload.json()
-    assert tv_data["recent_matches"]
-    assert tv_data["recent_matches"][0]["score_label"] == "2 - 1"
-
     response = client.post(
         f"/api/tournaments/{tournament_id}/moderators",
         json={"label": "Plan 1", "resource_id": data["resources"][0]["id"]},
@@ -264,6 +250,28 @@ def test_full_admin_tv_and_moderator_flow(client: ApiClient) -> None:
     moderator = response.json()["moderator"]
     assert moderator["pin"]
     assert moderator["token"]
+
+    public_tv_payload = client.get("/api/tv/TVLINK0001")
+    assert public_tv_payload.status_code == 200
+    public_tv_data = public_tv_payload.json()
+    assert public_tv_data["bound"] is True
+    assert public_tv_data["tournament"]["id"] == tournament_id
+    assert public_tv_data["resources"] == [data["resources"][0]]
+    assert all(match["resource_id"] == data["resources"][0]["id"] for match in public_tv_data["matches"])
+    assert public_tv_data["moderators"] == []
+    assert public_tv_data["events"] == []
+
+    anonymous_client = ApiClient(client.base_url)
+    tv_payload = anonymous_client.get(f"/api/tournaments/{tournament_id}/tv")
+    assert tv_payload.status_code == 401
+
+    tv_payload = client.get(f"/api/tournaments/{tournament_id}/tv")
+    assert tv_payload.status_code == 200
+    tv_data = tv_payload.json()
+    assert tv_data["moderators"][0]["pin"] == moderator["pin"]
+    assert tv_data["events"]
+    assert tv_data["recent_matches"]
+    assert tv_data["recent_matches"][0]["score_label"] == "2 - 1"
 
     moderator_session = client.get(f"/api/moderators/{moderator['token']}")
     assert moderator_session.status_code == 200
