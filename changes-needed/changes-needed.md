@@ -58,6 +58,9 @@ Jag lade till beräkningar i `frontend/src/tv/TvApp.tsx` som jämför hela paylo
 
 9. Slutspelsseeding kan para ihop lag från samma grupp direkt i första slutspelsrundan trots att det går att undvika. Repro med 3 grupper och 2 vidare gav `Grupp C #1 vs Grupp C #2`. Se `backend/turneringar/services.py:134-144`, `backend/turneringar/services.py:185-213`.
 
+Status: Löst
+Jag lade till `balance_first_round_pairs()` i `backend/turneringar/services.py`, som utgår från den befintliga bracketparningen och byter slots när ett förstaomgångspar kommer från samma grupp. Funktionen accepterar BYE-platser men räknar bara riktiga gruppslots som konflikter, så den kan behålla enkla BYE-parningar och ändå reparera undvikbara gruppmöten. I samma knockoutbyggare flyttade jag uppdateringen av `previous_round` ut ur den inre loopen, eftersom senare rundor annars byggdes från ett ofullständigt mellanläge. Regressionstestet `backend/tests/test_services.py::TournamentServiceTests::test_first_knockout_round_avoids_same_group_pairings_when_possible` skapar exakt 3 grupper med 2 vidare och verifierar att första slutspelsrundan saknar samma-grupp-par.
+
 10. Grupper med en deltagare seedas inte automatiskt till slutspel. Repro med 3 deltagare, 3 grupper, 1 vidare/grupp gav knockoutmatcher som fortfarande stod `Grupp A #1 vs BYE` och status `pending`. `seed_knockout_from_groups()` körs bara efter resultatuppdatering, men i enpersonersgrupper finns inga gruppmatcher att rapportera. Se `backend/turneringar/services.py:68-150`, `backend/turneringar/services.py:649-692`.
 
 11. `qualifiers_per_group` kan sättas högre än antalet deltagare i grupperna och skapar omöjliga placeholder-slots som aldrig fylls. Det finns ingen validering i create/settings/generate. Se `backend/turneringar/main.py:217-219`, `backend/turneringar/main.py:299-302`, `backend/turneringar/services.py:134-144`, `backend/turneringar/services.py:743-753`.

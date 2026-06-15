@@ -114,6 +114,29 @@ class TournamentServiceTests(unittest.TestCase):
         self.assertTrue(all(match["participant_a_id"] for match in knockout_round))
         self.assertTrue(all(match["participant_b_id"] for match in knockout_round))
 
+    def test_first_knockout_round_avoids_same_group_pairings_when_possible(self) -> None:
+        tournament_id = self.create_seeded_tournament(
+            participant_count=6,
+            resource_count=1,
+            group_count=3,
+            qualifiers_per_group=2,
+        )
+
+        services.generate_structure(self.conn, tournament_id)
+
+        first_round = [
+            match
+            for match in store.list_matches(self.conn, tournament_id)
+            if match["stage_kind"] == "knockout" and match["round"] == 1
+        ]
+        same_group_pairings = [
+            match
+            for match in first_round
+            if match["source_a_group_id"]
+            and match["source_a_group_id"] == match["source_b_group_id"]
+        ]
+        self.assertEqual([], same_group_pairings)
+
     def test_live_score_does_not_complete_or_seed(self) -> None:
         tournament_id = self.create_seeded_tournament()
         services.generate_structure(self.conn, tournament_id)

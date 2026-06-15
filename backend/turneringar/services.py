@@ -189,10 +189,9 @@ def build_knockout_stage(
         (tournament_id,),
     ).lastrowid
 
-    first_half = qualifier_slots[: bracket_size // 2]
-    second_half = list(reversed(qualifier_slots[bracket_size // 2 :]))
+    first_round_pairs = balance_first_round_pairs(qualifier_slots, bracket_size)
     previous_round: list[int] = []
-    for index, (slot_a, slot_b) in enumerate(zip(first_half, second_half), start=1):
+    for index, (slot_a, slot_b) in enumerate(first_round_pairs, start=1):
         match_id = conn.execute(
             """
             INSERT INTO matches (
@@ -251,6 +250,47 @@ def build_knockout_stage(
             next_round.append(int(match_id))
         previous_round = next_round
         round_number += 1
+
+
+def balance_first_round_pairs(
+    qualifier_slots: list[dict],
+    bracket_size: int,
+) -> list[tuple[dict, dict]]:
+    first_half = qualifier_slots[: bracket_size // 2]
+    second_half = list(reversed(qualifier_slots[bracket_size // 2 :]))
+    pairs = [[slot_a, slot_b] for slot_a, slot_b in zip(first_half, second_half)]
+
+    for index, pair in enumerate(pairs):
+        if not same_group_pair(pair[0], pair[1]):
+            continue
+        for other_index, other_pair in enumerate(pairs):
+            if other_index == index:
+                continue
+            for own_side, other_side in ((0, 0), (0, 1), (1, 0), (1, 1)):
+                candidate_pair = pair.copy()
+                candidate_other = other_pair.copy()
+                candidate_pair[own_side], candidate_other[other_side] = (
+                    candidate_other[other_side],
+                    candidate_pair[own_side],
+                )
+                if same_group_pair(candidate_pair[0], candidate_pair[1]):
+                    continue
+                if same_group_pair(candidate_other[0], candidate_other[1]):
+                    continue
+                pairs[index] = candidate_pair
+                pairs[other_index] = candidate_other
+                break
+            if not same_group_pair(pairs[index][0], pairs[index][1]):
+                break
+
+    return [(pair[0], pair[1]) for pair in pairs]
+
+
+def same_group_pair(slot_a: dict, slot_b: dict) -> bool:
+    return (
+        slot_a.get("group_id") is not None
+        and slot_a.get("group_id") == slot_b.get("group_id")
+    )
 
 
 def knockout_round_name(match_count: int, index: int) -> str:
