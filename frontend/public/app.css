@@ -992,6 +992,18 @@ button.filter-chip:focus-visible {
   text-transform: uppercase;
 }
 
+.list-more {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.resource-column .list-more {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
 .match-status-row {
   margin-top: -2px;
 }

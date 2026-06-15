@@ -398,3 +398,45 @@ test("admin visar alla grupptabeller i slutspelsvyn", async ({ page }) => {
   await expect(page.locator("#tabeller")).toContainText("Grupp B");
   await expect(page.locator("#tabeller")).toContainText("Grupp C");
 });
+
+test("schemavyn visar när resurs- och sidolistor fortsätter", async ({ page }) => {
+  await loginAsAdmin(page);
+
+  const tournamentName = `Schedule More ${Date.now()}`;
+  let response = await page.request.post("/api/tournaments", {
+    data: {
+      name: tournamentName,
+      starts_at: "2026-12-14T10:00",
+      group_count: 4,
+      qualifiers_per_group: 2,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+  const tournament = await response.json() as { id: number };
+
+  for (let index = 1; index <= 16; index += 1) {
+    response = await page.request.post(`/api/tournaments/${tournament.id}/participants`, {
+      data: { name: `Lag ${index}`, kind: "team", seed: index },
+    });
+    expect(response.ok()).toBeTruthy();
+  }
+
+  response = await page.request.post(`/api/tournaments/${tournament.id}/resources`, {
+    data: { name: "Plan 1", kind: "court" },
+  });
+  expect(response.ok()).toBeTruthy();
+
+  response = await page.request.post(`/api/tournaments/${tournament.id}/generate`, { data: {} });
+  expect(response.ok()).toBeTruthy();
+  response = await page.request.post(`/api/tournaments/${tournament.id}/schedule`, { data: {} });
+  expect(response.ok()).toBeTruthy();
+
+  await page.goto(`/tournaments/${tournament.id}#schema`);
+  await expect(page.getByRole("heading", { name: tournamentName })).toBeVisible();
+
+  const resourceColumn = page.locator("#schema .resource-column").filter({ hasText: "Plan 1" });
+  await expect(resourceColumn).toContainText(/matcher till på Plan 1/);
+
+  const unplacedPanel = page.locator("#schema .side-stack > .panel").filter({ hasText: "Ej placerade" });
+  await expect(unplacedPanel).toContainText(/match till saknar plats/);
+});

@@ -135,6 +135,9 @@ Jag ändrade tabellpanelen i `frontend/src/admin/AdminApp.tsx` så den renderar 
 
 24. Schemavyn visar bara fem matcher per resurs och sex ej placerade matcher i sidopanelen. Resten försvinner från just den vyn utan "visa fler". Se `frontend/src/admin/AdminApp.tsx:687-691`, `frontend/src/admin/AdminApp.tsx:954-965`, `frontend/src/admin/AdminApp.tsx:980-985`.
 
+Status: Löst
+Jag ändrade schemaberäkningen i `frontend/src/admin/AdminApp.tsx` så den räknar hela listan per resurs innan den skär ned visningen till fem matcher. Varje resurskort visar nu en `list-more`-rad när fler matcher finns på samma resurs, och sidopanelen för ej placerade matcher gör samma sak när fler än sex poster finns. `frontend/public/app.css` har fått en återhållen stil för fortsättningsraden så indikatorn syns utan att störa schemakorten. Regressionstestet `frontend/tests/admin-flow.spec.ts::schemavyn visar när resurs- och sidolistor fortsätter` skapar en stor turnering med en resurs och verifierar i Docker/Chromium att båda fortsättningsindikatorerna visas.
+
 25. Invalid moderatorlänk fastnar i "Laddar moderatorvy..." plus notice. `ModeratorView` har inget eget error state och renderar laddning för evigt när `/api/moderators/{token}` ger 404. Se `frontend/src/admin/AdminApp.tsx:1214-1221`, `frontend/src/admin/AdminApp.tsx:1274-1278`.
 
 26. Moderatorvyns statusfilter är också statiska och matchlistan kan bli stor utan sök/filter. Se `frontend/src/admin/AdminApp.tsx:1301-1325`.

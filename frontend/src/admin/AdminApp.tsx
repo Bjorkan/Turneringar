@@ -50,6 +50,10 @@ type ParticipantFilter = "all" | "team" | "player" | "seeded";
 type MatchFilter = "all" | "live" | "upcoming" | "done" | "unplaced";
 type ModeratorMatchFilter = "all" | "live" | "upcoming";
 
+function moreText(count: number, singular: string, plural: string): string {
+  return count === 1 ? `1 ${singular} till` : `${count} ${plural} till`;
+}
+
 const navItems: NavItem[] = [
   { label: "Turneringar", glyph: "T" },
   { label: "Live TV", glyph: "TV" },
@@ -693,11 +697,17 @@ function TournamentView({
     return true;
   });
   const selectedParticipant = filteredParticipants[0] || null;
-  const resourcesWithMatches = resources.map((resource) => ({
-    ...resource,
-    matches: sortedMatches.filter((match) => match.resource_id === resource.id).slice(0, 5),
-  }));
-  const unplacedMatches = sortedMatches.filter((match) => !match.resource_id || !match.scheduled_at).slice(0, 6);
+  const resourcesWithMatches = resources.map((resource) => {
+    const resourceMatches = sortedMatches.filter((match) => match.resource_id === resource.id);
+    return {
+      ...resource,
+      matches: resourceMatches.slice(0, 5),
+      hiddenMatchCount: Math.max(0, resourceMatches.length - 5),
+    };
+  });
+  const allUnplacedMatches = sortedMatches.filter((match) => !match.resource_id || !match.scheduled_at);
+  const unplacedMatches = allUnplacedMatches.slice(0, 6);
+  const hiddenUnplacedCount = Math.max(0, allUnplacedMatches.length - unplacedMatches.length);
   const qualifiedRows: StandingRow[] = tournament
     ? standings.flatMap((standing) =>
         standing.rows.slice(0, Math.max(1, Number(tournament.qualifiers_per_group || 1))).map((row) => ({
@@ -993,6 +1003,7 @@ function TournamentView({
                           <small>{match.time_label} · {match.group_name || match.stage_name || match.name}</small>
                         </div>
                       ))}
+                      {resource.hiddenMatchCount ? <p className="list-more">{moreText(resource.hiddenMatchCount, "match", "matcher")} på {resource.name}</p> : null}
                     </article>
                   ))}
                   {!resources.length ? <p className="empty">Lägg till en spelplan eller server för att bygga schema.</p> : null}
@@ -1013,6 +1024,7 @@ function TournamentView({
                   <div className="mini-list">
                     {!unplacedMatches.length ? <p className="empty">Alla spelbara matcher har en plats.</p> : null}
                     {unplacedMatches.map((match) => <article key={match.id}><div><strong>{match.side_a} vs {match.side_b}</strong><small>{match.group_name || match.stage_name || match.name}</small></div></article>)}
+                    {hiddenUnplacedCount ? <p className="list-more">{moreText(hiddenUnplacedCount, "match", "matcher")} saknar plats</p> : null}
                   </div>
                 </section>
                 <section className="panel quick-panel">
