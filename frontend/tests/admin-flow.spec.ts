@@ -175,6 +175,64 @@ test("ogiltig moderatorlänk visar fel utan evig laddning", async ({ page }) => 
   await expect(page.locator(".moderator-page")).not.toContainText("Laddar moderatorvy...");
 });
 
+test("moderatorvyn filtrerar matcher med status och sök", async ({ page }) => {
+  await loginAsAdmin(page);
+
+  const tournamentName = `Moderator Filter ${Date.now()}`;
+  let response = await page.request.post("/api/tournaments", {
+    data: {
+      name: tournamentName,
+      starts_at: "2026-12-14T10:00",
+      group_count: 2,
+      qualifiers_per_group: 1,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+  const tournament = await response.json() as { id: number };
+
+  for (let index = 1; index <= 8; index += 1) {
+    response = await page.request.post(`/api/tournaments/${tournament.id}/participants`, {
+      data: { name: `Lag ${index}`, kind: "team", seed: index },
+    });
+    expect(response.ok()).toBeTruthy();
+  }
+
+  response = await page.request.post(`/api/tournaments/${tournament.id}/resources`, {
+    data: { name: "Plan 1", kind: "court" },
+  });
+  expect(response.ok()).toBeTruthy();
+  response = await page.request.post(`/api/tournaments/${tournament.id}/generate`, { data: {} });
+  expect(response.ok()).toBeTruthy();
+  response = await page.request.post(`/api/tournaments/${tournament.id}/schedule`, { data: {} });
+  expect(response.ok()).toBeTruthy();
+  response = await page.request.post(`/api/tournaments/${tournament.id}/moderators`, {
+    data: { label: "Domare alla matcher" },
+  });
+  expect(response.ok()).toBeTruthy();
+  const moderator = (await response.json() as { moderator: { pin: string; token: string } }).moderator;
+
+  await page.goto(`/m/${moderator.token}`);
+  await page.locator('input[name="pin"]').fill(moderator.pin);
+  await page.getByRole("button", { name: "Öppna" }).click();
+  await expect(page.locator(".moderator-match-card")).toHaveCount(12);
+
+  const firstScoreForm = page.locator(".moderator-score-card").first();
+  await firstScoreForm.locator('input[name="score_a"]').fill("1");
+  await firstScoreForm.locator('input[name="score_b"]').fill("0");
+  await firstScoreForm.getByRole("button", { name: "Spara livepoäng" }).click();
+  await expect(page.getByRole("status")).toContainText("Livepoäng sparad.");
+
+  await page.getByRole("button", { name: /Pågår/ }).click();
+  await expect(page.locator(".moderator-match-card")).toHaveCount(1);
+
+  await page.getByRole("button", { name: /Alla matcher/ }).click();
+  await page.getByLabel("Sök matcher").fill("Lag 8");
+  await expect(page.locator(".moderator-match-card").first()).toContainText("Lag 8");
+  const filteredCards = await page.locator(".moderator-match-card").allTextContents();
+  expect(filteredCards.length).toBeGreaterThan(0);
+  expect(filteredCards.every((text) => text.includes("Lag 8"))).toBeTruthy();
+});
+
 test("mobil adminvy börjar med toppbar och dold sidomeny", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await loginAsAdmin(page);

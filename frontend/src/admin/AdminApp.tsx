@@ -1256,6 +1256,7 @@ function ModeratorView({
   const [data, setData] = useState<ModeratorPayload | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [moderatorFilter, setModeratorFilter] = useState<ModeratorMatchFilter>("all");
+  const [moderatorQuery, setModeratorQuery] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -1286,10 +1287,23 @@ function ModeratorView({
     live: moderatorMatches.filter((match) => match.status === "in_progress").length,
     upcoming: moderatorMatches.filter((match) => match.status !== "in_progress").length,
   };
-  const filteredModeratorMatches = moderatorMatches.filter((match) => {
+  const normalizedModeratorQuery = moderatorQuery.trim().toLowerCase();
+  const statusFilteredModeratorMatches = moderatorMatches.filter((match) => {
     if (moderatorFilter === "live") return match.status === "in_progress";
     if (moderatorFilter === "upcoming") return match.status !== "in_progress";
     return true;
+  });
+  const filteredModeratorMatches = statusFilteredModeratorMatches.filter((match) => {
+    if (!normalizedModeratorQuery) return true;
+    return [
+      match.side_a,
+      match.side_b,
+      match.group_name,
+      match.stage_name,
+      match.name,
+      match.resource_name,
+      match.time_label,
+    ].some((value) => String(value || "").toLowerCase().includes(normalizedModeratorQuery));
   });
 
   const login = async (event: FormEvent<HTMLFormElement>) => {
@@ -1359,6 +1373,13 @@ function ModeratorView({
               </aside>
 
               <section className="moderator-main">
+                <div className="toolbar">
+                  <label className="search-field">
+                    <span>⌕</span>
+                    <input value={moderatorQuery} onChange={(event) => setModeratorQuery(event.target.value)} type="search" placeholder="Sök matcher..." aria-label="Sök matcher" />
+                  </label>
+                  <button className="button subtle" type="button" onClick={() => { setModeratorQuery(""); setModeratorFilter("all"); }}>Rensa filter</button>
+                </div>
                 <div className="filter-row">
                   <button type="button" className={`filter-chip ${moderatorFilter === "all" ? "active" : ""}`} aria-pressed={moderatorFilter === "all"} onClick={() => setModeratorFilter("all")}>Alla matcher <strong>{moderatorCounts.all}</strong></button>
                   <button type="button" className={`filter-chip ${moderatorFilter === "live" ? "active" : ""}`} aria-pressed={moderatorFilter === "live"} onClick={() => setModeratorFilter("live")}>Pågår <strong>{moderatorCounts.live}</strong></button>

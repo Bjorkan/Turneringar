@@ -145,6 +145,9 @@ Jag lade till ett `loadError`-state i `ModeratorView` så misslyckad laddning sp
 
 26. Moderatorvyns statusfilter är också statiska och matchlistan kan bli stor utan sök/filter. Se `frontend/src/admin/AdminApp.tsx:1301-1325`.
 
+Status: Löst
+Jag behöll statuschipsen som riktiga knappar och lade till ett `moderatorQuery`-state i `ModeratorView` för sökning i matchlistan. Filtreringen sker nu i två steg: först status (`Alla`, `Pågår`, `Kommande`) och sedan textträff på lag, grupp/steg, matchnamn, resurs eller tid. Moderatorvyn har fått en sökruta med befintlig toolbar/search-field-stil samt en Rensa filter-knapp som återställer både söktext och status. Regressionstestet `frontend/tests/admin-flow.spec.ts::moderatorvyn filtrerar matcher med status och sök` skapar tolv moderatorbara matcher, gör en match pågående och verifierar i Docker/Chromium att statusfiltret och sökningen begränsar listan.
+
 27. All-scope moderatorer kan se och rapportera spelbara men oschemalagda matcher. Backend filtrerar bara på `match_is_playable` och `status != completed`, inte på schemalagd/resurs/current. Det gör det lätt att rapportera fel match. Se `backend/turneringar/main.py:444-453`, `backend/turneringar/services.py:756-765`.
 
 28. Admin-PIN och moderator-PIN lagras direkt i cookies. De är HttpOnly men råhemligheten blir sessionsbeviset. Byt till signerad session/token med rotation och lagra aldrig PIN som cookievärde. Se `backend/turneringar/main.py:20`, `backend/turneringar/main.py:33`, `backend/turneringar/main.py:188`, `backend/turneringar/main.py:467`.
