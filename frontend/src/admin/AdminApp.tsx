@@ -1254,12 +1254,15 @@ function ModeratorView({
   onClear: () => void;
 }) {
   const [data, setData] = useState<ModeratorPayload | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [moderatorFilter, setModeratorFilter] = useState<ModeratorMatchFilter>("all");
 
   const load = useCallback(async () => {
     try {
+      setLoadError(null);
       setData(await api<ModeratorPayload>(`/api/moderators/${token}`));
     } catch (error) {
+      setLoadError(error instanceof Error ? error.message : String(error));
       onError(error);
     }
   }, [onError, token]);
@@ -1323,7 +1326,15 @@ function ModeratorView({
   return (
     <main className="page moderator-page">
       <NoticeBox notice={notice} onClear={onClear} />
-      {!data ? <section className="panel">Laddar moderatorvy...</section> : null}
+      {!data && !loadError ? <section className="panel">Laddar moderatorvy...</section> : null}
+      {!data && loadError ? (
+        <section className="panel narrow">
+          <p className="eyebrow">Moderator</p>
+          <h1>Moderatorlänken kunde inte öppnas</h1>
+          <p>{loadError}</p>
+          <a className="button subtle" href="/">Till startsidan</a>
+        </section>
+      ) : null}
       {data ? (
         <>
           <section className="page-head" data-tournament-id={data.moderator.tournament_id}>

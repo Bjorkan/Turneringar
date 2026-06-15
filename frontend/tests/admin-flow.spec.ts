@@ -167,6 +167,14 @@ test("moderatorvy och Live TV laddar från samma frontendbygge", async ({ page }
   await expect(page.locator(".tv-stage")).not.toContainText("Senaste aktivitet");
 });
 
+test("ogiltig moderatorlänk visar fel utan evig laddning", async ({ page }) => {
+  await page.goto(`/m/saknas-${Date.now()}`);
+
+  await expect(page.getByRole("heading", { name: "Moderatorlänken kunde inte öppnas" })).toBeVisible();
+  await expect(page.locator(".moderator-page")).toContainText("Moderatorlänken finns inte.");
+  await expect(page.locator(".moderator-page")).not.toContainText("Laddar moderatorvy...");
+});
+
 test("mobil adminvy börjar med toppbar och dold sidomeny", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await loginAsAdmin(page);

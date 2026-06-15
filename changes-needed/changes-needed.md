@@ -140,6 +140,9 @@ Jag ändrade schemaberäkningen i `frontend/src/admin/AdminApp.tsx` så den räk
 
 25. Invalid moderatorlänk fastnar i "Laddar moderatorvy..." plus notice. `ModeratorView` har inget eget error state och renderar laddning för evigt när `/api/moderators/{token}` ger 404. Se `frontend/src/admin/AdminApp.tsx:1214-1221`, `frontend/src/admin/AdminApp.tsx:1274-1278`.
 
+Status: Löst
+Jag lade till ett `loadError`-state i `ModeratorView` så misslyckad laddning sparas lokalt i stället för att bara skickas till notice-raden. Spinnern visas nu bara när vyn fortfarande väntar på svar och inget fel finns, så en 404 kan inte fastna i "Laddar moderatorvy...". Vid fel renderas en egen panel med rubriken "Moderatorlänken kunde inte öppnas", API:ets feltext och en länk tillbaka till startsidan. Regressionstestet `frontend/tests/admin-flow.spec.ts::ogiltig moderatorlänk visar fel utan evig laddning` går till en saknad moderatorlänk i Docker/Chromium och verifierar både feltexten och att laddningstexten försvinner.
+
 26. Moderatorvyns statusfilter är också statiska och matchlistan kan bli stor utan sök/filter. Se `frontend/src/admin/AdminApp.tsx:1301-1325`.
 
 27. All-scope moderatorer kan se och rapportera spelbara men oschemalagda matcher. Backend filtrerar bara på `match_is_playable` och `status != completed`, inte på schemalagd/resurs/current. Det gör det lätt att rapportera fel match. Se `backend/turneringar/main.py:444-453`, `backend/turneringar/services.py:756-765`.
