@@ -959,3 +959,153 @@ def test_concurrent_writes_do_not_corrupt_tournament(client: ApiClient) -> None:
     after4 = client.get(f"/api/tournaments/{tid}").json()
     assert len(after4["stages"]) == len(after["stages"])
     assert after4["tournament"]["status"] in ("draft", "ready", "in_progress", "completed")
+
+
+# ---------------------------------------------------------------------------
+# SSE / Realtime contract tests
+# ---------------------------------------------------------------------------
+
+import http.client
+
+
+def _sse_host_port(base_url: str) -> tuple[str, int]:
+    """Extrahera host och port från en ApiClient base_url."""
+    no_scheme = base_url.removeprefix("http://").removeprefix("https://")
+    host, _, port_str = no_scheme.partition(":")
+    return host, int(port_str) if port_str else 80
+
+
+def test_sse_connected_event(client: ApiClient) -> None:
+    """SSE /api/events/{id} returnerar connected direkt vid anslutning."""
+    login(client)
+
+    create = client.post("/api/tournaments", json={"name": "SSE Hårdkoll", "group_count": 2})
+    assert create.status_code == 200
+    tid = create.json()["id"]
+
+    host, port = _sse_host_port(client.base_url)
+    conn = http.client.HTTPConnection(host, port, timeout=5)
+    try:
+        conn.request("GET", f"/api/events/{tid}")
+        resp2 = conn.getresponse()
+
+        assert resp2.status == 200
+        ct = (resp2.getheader("content-type") or "")
+        assert ct.startswith("text/event-stream")
+
+        line1 = resp2.readline().decode("utf-8").rstrip("\r\n")
+        line2 = resp2.readline().decode("utf-8").rstrip("\r\n")
+        blank = resp2.readline().decode("utf-8").rstrip("\r\n")
+
+        assert line1 == "event: connected"
+        assert json.loads(line2.removeprefix("data: ")) == {"ok": True}
+        assert blank == ""
+    finally:
+        conn.close()
+
+
+def test_sse_delivers_events_after_publish(client: ApiClient) -> None:
+    """Efter publish() på en turnering levereras event via SSE."""
+    login(client)
+
+    create = client.post("/api/tournaments", json={"name": "SSE Pub", "group_count": 2})
+    assert create.status_code == 200
+    tid = create.json()["id"]
+
+    add_par = client.post(f"/api/tournaments/{tid}/participants", json={"name": "Lag A", "kind": "team", "seed": 1})
+    assert add_par.status_code == 200
+
+    host, port = _sse_host_port(client.base_url)
+    conn = http.client.HTTPConnection(host, port, timeout=5)
+    try:
+        conn.request("GET", f"/api/events/{tid}")
+        resp2 = conn.getresponse()
+        assert resp2.status == 200
+
+        # Consume the "connected" event
+        resp2.readline()
+        resp2.readline()
+        resp2.readline()
+
+        # Trigger a publish by adding another participant
+        add_par2 = client.post(f"/api/tournaments/{tid}/participants", json={"name": "Lag B", "kind": "team", "seed": 2})
+        assert add_par2.status_code == 200
+
+        ev_line = resp2.readline().decode("utf-8").rstrip("\r\n")
+        dt_line = resp2.readline().decode("utf-8").rstrip("\r\n")
+        blank = resp2.readline().decode("utf-8").rstrip("\r\n")
+
+        assert ev_line == "event: participant_added"
+        payload = json.loads(dt_line.removeprefix("data: "))
+        assert "participant_id" in payload
+        assert blank == ""
+    finally:
+        conn.close()
+
+
+def test_sse_tv_events_endpoint(client: ApiClient) -> None:
+    """SSE /api/tv/{code}/events fungerar och levererar TV-händelser."""
+    login(client)
+
+    create = client.post("/api/tournaments", json={"name": "TV SSE", "group_count": 2})
+    assert create.status_code == 200
+    tid = create.json()["id"]
+
+    # Create TV link and associate with tournament
+    tv_resp = client.post("/api/tv-links", json={"label": "TV1"})
+    assert tv_resp.status_code == 200, f"tv create failed: {tv_resp.status_code} {tv_resp.text}"
+    tv_link = tv_resp.json()["tv_link"]
+    tv_code = tv_link["code"]
+
+    patch_resp = client.patch(f"/api/tv-links/{tv_link['id']}", json={"tournament_id": tid})
+    assert patch_resp.status_code == 200, f"tv patch failed: {patch_resp.status_code} {patch_resp.text}"
+
+    host, port = _sse_host_port(client.base_url)
+    conn = http.client.HTTPConnection(host, port, timeout=5)
+    try:
+        conn.request("GET", f"/api/tv/{tv_code}/events")
+        resp2 = conn.getresponse()
+        assert resp2.status == 200
+        ct = (resp2.getheader("content-type") or "")
+        assert ct.startswith("text/event-stream")
+
+        line1 = resp2.readline().decode("utf-8").rstrip("\r\n")
+        line2 = resp2.readline().decode("utf-8").rstrip("\r\n")
+        blank = resp2.readline().decode("utf-8").rstrip("\r\n")
+        assert line1 == "event: connected"
+        assert line2 == 'data: {"ok": true}'
+        assert blank == ""
+
+        # Publish a tournament event — TV should also receive it
+        add = client.post(f"/api/tournaments/{tid}/participants", json={"name": "TV Lag", "kind": "team", "seed": 1})
+        assert add.status_code == 200
+
+        ev_line = resp2.readline().decode("utf-8").rstrip("\r\n")
+        dt_line = resp2.readline().decode("utf-8").rstrip("\r\n")
+        blank2 = resp2.readline().decode("utf-8").rstrip("\r\n")
+
+        assert ev_line == "event: participant_added"
+        assert json.loads(dt_line.removeprefix("data: "))["participant_id"] > 0
+        assert blank2 == ""
+    finally:
+        conn.close()
+
+
+def test_sse_connection_can_be_closed_gracefully(client: ApiClient) -> None:
+    """SSE-anslutning går att stänga utan undantag."""
+    login(client)
+
+    create = client.post("/api/tournaments", json={"name": "SSE Close", "group_count": 2})
+    assert create.status_code == 200
+    tid = create.json()["id"]
+
+    host, port = _sse_host_port(client.base_url)
+    conn = http.client.HTTPConnection(host, port, timeout=5)
+    try:
+        conn.request("GET", f"/api/events/{tid}")
+        resp2 = conn.getresponse()
+        assert resp2.status == 200
+        resp2.readline()
+        conn.close()
+    finally:
+        conn.close()
