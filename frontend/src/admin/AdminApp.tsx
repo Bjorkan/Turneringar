@@ -966,20 +966,27 @@ function TournamentView({
                   <input name="seed" type="number" min="1" placeholder="Seed" />
                   <button type="submit">Lägg till deltagare</button>
                 </form>
-                <table className="admin-table compact-table participant-table">
-                  <thead><tr><th>Seed</th><th>Namn</th><th>Typ</th><th>Status</th></tr></thead>
-                  <tbody>
-                    {!filteredParticipants.length ? <tr><td colSpan={4}>Inga deltagare matchar filtret.</td></tr> : null}
-                    {filteredParticipants.map((participant) => (
-                      <tr key={participant.id}>
-                        <td>{participant.seed || "-"}</td>
-                        <td><span className="avatar-chip">{initials(participant.name)}</span><strong>{participant.name}</strong></td>
-                        <td>{participantKindText(participant.kind)}</td>
-                        <td><span className="status-badge success">Registrerad</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="table-scroll">
+                  <table className="admin-table compact-table participant-table">
+                    <thead><tr><th>Seed</th><th>Namn</th><th>Typ</th><th>Status</th></tr></thead>
+                    <tbody>
+                      {!filteredParticipants.length ? <tr><td colSpan={4}>Inga deltagare matchar filtret.</td></tr> : null}
+                      {filteredParticipants.map((participant) => (
+                        <tr key={participant.id}>
+                          <td>{participant.seed || "-"}</td>
+                          <td className="participant-name-cell">
+                            <div className="table-name">
+                              <span className="avatar-chip">{initials(participant.name)}</span>
+                              <strong title={participant.name}>{participant.name}</strong>
+                            </div>
+                          </td>
+                          <td>{participantKindText(participant.kind)}</td>
+                          <td><span className="status-badge success">Registrerad</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </section>
 
               <aside className="side-stack">

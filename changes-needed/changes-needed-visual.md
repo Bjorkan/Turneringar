@@ -67,6 +67,9 @@ Kod:
 
 Tabellceller med användargenererade namn behöver explicit wrapping/ellipsis och en förutsägbar scroll-container.
 
+Status: Löst
+Jag gav deltagartabellen en fast kolumnstrategi så seed, typ och status inte låter ett långt namn trycka ut hela raden. Namncellen renderas nu som ett eget flexblock med avatar och text, där namnet har ellipsis, `overflow: hidden` och `title` med hela deltagarnamnet. På mobil ligger deltagartabellen i en egen scrollbar-wrapper, men själva namnet hålls inom deltagarpanelen och signalerar tydligt att texten fortsätter. Regressionstestet `frontend/tests/admin-flow.spec.ts::deltagarlistan visar ellipsis och titel för långa namn` skapar ett långt obrutet deltagarnamn på 320 px och verifierar ellipsis, tooltip och att texten stannar inom panelen.
+
 ## 4. Deltagardetaljkortet låter långa namn gå utanför kortet
 
 Skärmdump:

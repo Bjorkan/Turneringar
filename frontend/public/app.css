@@ -1363,6 +1363,11 @@ label {
   width: 92px;
 }
 
+.table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
 .admin-table {
   width: 100%;
   border-collapse: collapse;
@@ -1391,6 +1396,50 @@ label {
 .compact-table th,
 .compact-table td {
   padding: 10px 8px;
+}
+
+.participant-table {
+  table-layout: fixed;
+}
+
+.participant-table th:nth-child(1),
+.participant-table td:nth-child(1) {
+  width: 64px;
+}
+
+.participant-table th:nth-child(3),
+.participant-table td:nth-child(3) {
+  width: 96px;
+}
+
+.participant-table th:nth-child(4),
+.participant-table td:nth-child(4) {
+  width: 126px;
+}
+
+.participant-name-cell {
+  min-width: 0;
+}
+
+.table-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.table-name .avatar-chip {
+  flex: 0 0 30px;
+  margin-right: 0;
+}
+
+.table-name strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .row-dot {
@@ -2463,6 +2512,11 @@ body.tv {
   .admin-table {
     display: block;
     overflow-x: auto;
+  }
+
+  .table-scroll .admin-table {
+    display: table;
+    overflow: visible;
   }
 }
 
