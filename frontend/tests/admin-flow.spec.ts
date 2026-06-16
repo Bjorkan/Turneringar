@@ -603,6 +603,63 @@ test("schemabrädan bryter långa resurs- och matchnamn i kolumnerna", async ({ 
   expect(metrics!.matchOverflowWrap).toBe("anywhere");
 });
 
+test("alla-matcher-tabellen exploderar inte sidbredden", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await loginAsAdmin(page);
+
+  const tournamentName = `Alla Matcher Table ${Date.now()}`;
+  let response = await page.request.post("/api/tournaments", {
+    data: {
+      name: tournamentName,
+      starts_at: "2026-06-14T10:00",
+      group_count: 2,
+      qualifiers_per_group: 1,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+  const tournament = await response.json() as { id: number };
+
+  const longName = `ExtremtLångtObrutetLagnamnSomInteFårSpräckaMatchtabellen${Date.now()}`;
+  await page.request.post(`/api/tournaments/${tournament.id}/participants`, {
+    data: { name: longName, kind: "team", seed: 1 },
+  });
+  await page.request.post(`/api/tournaments/${tournament.id}/participants`, {
+    data: { name: "Lag 2", kind: "team", seed: 2 },
+  });
+
+  await page.request.post(`/api/tournaments/${tournament.id}/generate`, {
+    data: { confirm_reset: true },
+  });
+
+  const resourceName = `ResursMedEttExtremtLångtObrutetNamnSomTestarLayoutenJustNu${Date.now()}`;
+  response = await page.request.post(`/api/tournaments/${tournament.id}/resources`, {
+    data: { name: resourceName, kind: "court" },
+  });
+  expect(response.ok()).toBeTruthy();
+
+  await page.request.post(`/api/tournaments/${tournament.id}/schedule`);
+
+  await page.goto(`/tournaments/${tournament.id}#alla-matcher`);
+  await expect(page.getByRole("heading", { name: tournamentName })).toBeVisible();
+  await expect(page.getByText("Alla matcher")).toBeVisible();
+
+  const metrics = await page.evaluate(() => {
+    const panel = document.querySelector("#alla-matcher");
+    if (!panel) return null;
+    const panelBox = panel.getBoundingClientRect();
+    return {
+      documentWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
+      viewportWidth: window.innerWidth,
+      panelScrollWidth: panel.scrollWidth,
+      panelClientWidth: panel.clientWidth,
+    };
+  });
+
+  expect(metrics).not.toBeNull();
+  expect(metrics!.documentWidth).toBeLessThanOrEqual((metrics!.viewportWidth ?? 0) + 10);
+  expect(metrics!.panelScrollWidth).toBeLessThanOrEqual(metrics!.panelClientWidth + 50);
+});
+
 test("Live TV rymmer långa lagnamn på 1920-skärm", async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await loginAsAdmin(page);

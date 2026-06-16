@@ -1073,40 +1073,42 @@ function TournamentView({
                 <button type="button" className={`filter-chip ${matchFilter === "done" ? "active" : ""}`} aria-pressed={matchFilter === "done"} onClick={() => setMatchFilter("done")}>Avslutade <strong>{statusCounts.done}</strong></button>
                 <button type="button" className={`filter-chip ${matchFilter === "unplaced" ? "active" : ""}`} aria-pressed={matchFilter === "unplaced"} onClick={() => setMatchFilter("unplaced")}>Ej placerade <strong>{statusCounts.unplaced}</strong></button>
               </div>
-              <table className="matches admin-table">
-                <thead><tr><th>Match</th><th>Deltagare</th><th>Tid och plats</th><th>Status</th><th>Resultat</th><th>Åtgärder</th></tr></thead>
-                <tbody>
-                  {!filteredMatches.length ? <tr><td colSpan={6}>Inga matcher matchar filtret.</td></tr> : null}
-                  {filteredMatches.map((match) => (
-                    <tr key={match.id}>
-                      <td><strong>{match.name}</strong><small>{match.stage_name}{match.group_name ? ` · ${match.group_name}` : ""}</small></td>
-                      <td><strong>{match.side_a}</strong><span className="vs">vs</span><strong>{match.side_b}</strong></td>
-                      <td><span>{match.time_label}</span><small>{match.resource_name || "Ej placerad"}</small></td>
-                      <td><StatusBadge status={match.status} /></td>
-                      <td><strong>{match.score_label}</strong></td>
-                      <td>
-                        <div className="row-action-buttons">
-                          {canScoreMatch(match)
-                            ? <button type="button" className="button subtle" onClick={() => openScoreDialog(match)}>Poäng</button>
-                            : <span className="form-hint compact">{match.status === "completed" ? "Låst" : "Inväntar lag"}</span>}
-                        </div>
-                        <details className="row-actions">
-                          <summary>Tid</summary>
-                          <form className="tiny-form slot-form" onSubmit={(event) => { event.preventDefault(); void submitForm(`/api/tournaments/${id}/matches/${match.id}/slot`, "PATCH", event.currentTarget, "Match flyttad."); }}>
-                            <input name="scheduled_at" type="datetime-local" defaultValue={match.scheduled_at || tournament.starts_at || ""} required />
-                            <select name="resource_id" defaultValue={match.resource_id || ""} required>
-                              <option value="" disabled>Välj plats</option>
-                              {resources.map((resource) => <option key={resource.id} value={resource.id}>{resource.name}</option>)}
-                            </select>
-                            <input name="duration_minutes" type="number" min="1" defaultValue={match.duration_minutes} />
-                            <button type="submit">Spara tid</button>
-                          </form>
-                        </details>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="table-scroll">
+                <table className="matches admin-table">
+                  <thead><tr><th>Match</th><th>Deltagare</th><th>Tid och plats</th><th>Status</th><th>Resultat</th><th>Åtgärder</th></tr></thead>
+                  <tbody>
+                    {!filteredMatches.length ? <tr><td colSpan={6}>Inga matcher matchar filtret.</td></tr> : null}
+                    {filteredMatches.map((match) => (
+                      <tr key={match.id}>
+                        <td><div className="table-cell-text"><strong>{match.name}</strong><small>{match.stage_name}{match.group_name ? ` · ${match.group_name}` : ""}</small></div></td>
+                        <td><div className="table-cell-text"><strong>{match.side_a}</strong><span className="vs">vs</span><strong>{match.side_b}</strong></div></td>
+                        <td><span>{match.time_label}</span><small>{match.resource_name || "Ej placerad"}</small></td>
+                        <td><StatusBadge status={match.status} /></td>
+                        <td><strong>{match.score_label}</strong></td>
+                        <td>
+                          <div className="row-action-buttons">
+                            {canScoreMatch(match)
+                              ? <button type="button" className="button subtle" onClick={() => openScoreDialog(match)}>Poäng</button>
+                              : <span className="form-hint compact">{match.status === "completed" ? "Låst" : "Inväntar lag"}</span>}
+                          </div>
+                          <details className="row-actions">
+                            <summary>Tid</summary>
+                            <form className="tiny-form slot-form" onSubmit={(event) => { event.preventDefault(); void submitForm(`/api/tournaments/${id}/matches/${match.id}/slot`, "PATCH", event.currentTarget, "Match flyttad."); }}>
+                              <input name="scheduled_at" type="datetime-local" defaultValue={match.scheduled_at || tournament.starts_at || ""} required />
+                              <select name="resource_id" defaultValue={match.resource_id || ""} required>
+                                <option value="" disabled>Välj plats</option>
+                                {resources.map((resource) => <option key={resource.id} value={resource.id}>{resource.name}</option>)}
+                              </select>
+                              <input name="duration_minutes" type="number" min="1" defaultValue={match.duration_minutes} />
+                              <button type="submit">Spara tid</button>
+                            </form>
+                          </details>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </section>
           ) : null}
 

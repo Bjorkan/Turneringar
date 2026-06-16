@@ -1418,6 +1418,55 @@ label {
   padding: 10px 8px;
 }
 
+.matches.admin-table {
+  table-layout: fixed;
+  min-width: 0;
+}
+
+.matches.admin-table th:nth-child(1),
+.matches.admin-table td:nth-child(1) {
+  width: 20%;
+}
+
+.matches.admin-table th:nth-child(2),
+.matches.admin-table td:nth-child(2) {
+  width: 22%;
+}
+
+.matches.admin-table th:nth-child(3),
+.matches.admin-table td:nth-child(3) {
+  width: 16%;
+}
+
+.matches.admin-table th:nth-child(4),
+.matches.admin-table td:nth-child(4) {
+  width: 10%;
+}
+
+.matches.admin-table th:nth-child(5),
+.matches.admin-table td:nth-child(5) {
+  width: 12%;
+}
+
+.matches.admin-table th:nth-child(6),
+.matches.admin-table td:nth-child(6) {
+  width: 20%;
+}
+
+.matches.admin-table td {
+  vertical-align: top;
+}
+
+.matches.admin-table td .table-cell-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.matches.admin-table td .table-cell-text .vs {
+  display: inline;
+}
+
 .participant-table {
   table-layout: fixed;
 }

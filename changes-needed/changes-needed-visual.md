@@ -162,6 +162,9 @@ Kod:
 
 Tabellen behöver en riktig responsiv modell: definierade kolumnbredder, textbrytning, sticky/scrollad container eller en mobil kortvy.
 
+Status: Löst
+Jag gav `.matches.admin-table` `table-layout: fixed` med explicita procentbredder för varje kolumn, så långa namn inte längre kan trycka ut tabellen. Texttunga celler (match, deltagare) fick en `.table-cell-text`-wrapper med `overflow-wrap: anywhere` och `word-break: break-word`. Hela tabellen ligger i en `.table-scroll`-container för säker horisontell scroll på smal skärm. Regressionstestet `frontend/tests/admin-flow.spec.ts::alla-matcher-tabellen exploderar inte sidbredden` skapar en match med extremt långa lagnamn på 390 px och verifierar att dokument och panel stannar inom viewporten.
+
 ## 9. Den öppnade "Tid"-editorn i matchtabellen trycker iväg åtgärdskolumnen
 
 Skärmdumpar:
