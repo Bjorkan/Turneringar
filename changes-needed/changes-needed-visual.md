@@ -181,6 +181,9 @@ Kod:
 
 Det här bör vara en rad-expansion under tabellen, en popover/modaldialog eller en kontrollerad cell-layout. Nu beter den sig som en breddbomb.
 
+Status: Löst
+Jag ändrade `.row-actions[open]` så den inte längre har en stor `min-width` på 520 px, utan i stället får `max-width: 420px` med viewport-begränsning. Formuläret inuti details fick `flex-wrap: wrap` med `gap: 8px` så inputar, select och knapp radbryts i stället för att trycka ut cellen. Varje formulärelement fick `min-width: 100px` så de inte blir osynligt smala. Regressionstestet `frontend/tests/admin-flow.spec.ts::tid-editorn trycker inte iväg åtgärdskolumnen` öppnar details på en match på 390 px och verifierar att panelen inte spricker.
+
 ## 10. Poängdialogens matchnamn överlappar varandra
 
 Skärmdumpar:

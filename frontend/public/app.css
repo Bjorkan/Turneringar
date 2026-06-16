@@ -1561,11 +1561,22 @@ label {
 }
 
 .row-actions[open] {
-  min-width: min(520px, calc(100vw - 48px));
+  min-width: 0;
+  max-width: min(420px, calc(100vw - 48px));
 }
 
 .row-actions form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-top: 10px;
+}
+
+.row-actions form input,
+.row-actions form select,
+.row-actions form button {
+  flex: 1 1 auto;
+  min-width: 100px;
 }
 
 .standings-grid {
