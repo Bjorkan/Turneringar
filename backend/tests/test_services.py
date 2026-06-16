@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sqlite3
 import tempfile
 import unittest
@@ -557,6 +558,53 @@ class DatabaseMigrationTests(unittest.TestCase):
                 self.assertIn("001", versions2, "Migration 001 should still be recorded")
             finally:
                 conn2.close()
+        finally:
+            tmpdir.cleanup()
+
+
+class DatabaseErrorHandlingTests(unittest.TestCase):
+    def test_corrupt_database_raises_clean_error(self) -> None:
+        tmpdir = tempfile.TemporaryDirectory()
+        try:
+            db_path = Path(tmpdir.name) / "corrupt.sqlite3"
+            db_path.write_bytes(b"Not a valid SQLite database at all\x00\x00\x00")
+            with self.assertRaises((sqlite3.DatabaseError, sqlite3.OperationalError)):
+                conn = connect(db_path)
+                conn.execute("SELECT 1")
+                conn.close()
+        finally:
+            tmpdir.cleanup()
+
+    def test_readonly_database_directory_fails_write(self) -> None:
+        tmpdir = tempfile.TemporaryDirectory()
+        try:
+            db_dir = Path(tmpdir.name) / "readonly"
+            db_dir.mkdir()
+            db_path = db_dir / "turneringar.sqlite3"
+
+            conn = connect(db_path)
+            conn.execute("CREATE TABLE test (id INTEGER PRIMARY KEY)")
+            conn.execute("INSERT INTO test VALUES (1)")
+            conn.commit()
+            conn.close()
+
+            db_dir.chmod(0o444)
+
+            with self.assertRaises((sqlite3.OperationalError, PermissionError)):
+                connect(db_path)
+
+            db_dir.chmod(0o755)
+        finally:
+            tmpdir.cleanup()
+
+    def test_initialize_database_on_corrupt_file_fails_cleanly(self) -> None:
+        tmpdir = tempfile.TemporaryDirectory()
+        try:
+            db_path = Path(tmpdir.name) / "garbage.sqlite3"
+            db_path.write_bytes(os.urandom(512))
+
+            with self.assertRaises((sqlite3.DatabaseError, sqlite3.OperationalError)):
+                initialize_database(db_path)
         finally:
             tmpdir.cleanup()
 
