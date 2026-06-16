@@ -1213,6 +1213,62 @@ test("schemavyn visar när resurs- och sidolistor fortsätter", async ({ page })
   await expect(unplacedPanel).toContainText(/match till saknar plats/);
 });
 
+test("TV-slide-dots har title med slide-namn och topbar visar aktuell slide", async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await loginAsAdmin(page);
+
+  const tournamentName = `TV Dots ${Date.now()}`;
+  let response = await page.request.post("/api/tournaments", {
+    data: {
+      name: tournamentName,
+      starts_at: "2026-06-14T10:00",
+      group_count: 2,
+      qualifiers_per_group: 1,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+  const tournament = await response.json() as { id: number };
+
+  for (let i = 0; i < 4; i++) {
+    response = await page.request.post(`/api/tournaments/${tournament.id}/participants`, {
+      data: { name: `Lag ${i}`, kind: "team", seed: i + 1 },
+    });
+    expect(response.ok()).toBeTruthy();
+  }
+
+  response = await page.request.post(`/api/tournaments/${tournament.id}/resources`, {
+    data: { name: "Plan 1", kind: "court" },
+  });
+  expect(response.ok()).toBeTruthy();
+  const resource = await response.json() as { id: number };
+
+  response = await page.request.post(`/api/tournaments/${tournament.id}/generate`, { data: {} });
+  expect(response.ok()).toBeTruthy();
+  response = await page.request.post(`/api/tournaments/${tournament.id}/schedule`, { data: {} });
+  expect(response.ok()).toBeTruthy();
+
+  const tvCode = `TD${Date.now().toString().slice(-8)}`;
+  response = await page.request.post("/api/tv-links", { data: { label: "Dots TV", code: tvCode } });
+  expect(response.ok()).toBeTruthy();
+  const tvLink = (await response.json() as { tv_link: { id: number } }).tv_link;
+  response = await page.request.patch(`/api/tv-links/${tvLink.id}`, {
+    data: { label: "Dots TV", tournament_id: tournament.id, resource_id: resource.id },
+  });
+  expect(response.ok()).toBeTruthy();
+
+  await page.goto(`/tv/${tvCode}`);
+  await expect(page.getByText(tournamentName)).toBeVisible();
+
+  const dotTitles = await page.evaluate(() => {
+    const dots = document.querySelectorAll<HTMLElement>(".tv-dots span");
+    return Array.from(dots).map((dot) => dot.getAttribute("title"));
+  });
+  expect(dotTitles.length).toBe(3);
+  expect(dotTitles).toContain("Nu spelas");
+  expect(dotTitles).toContain("Tabeller och slutspel");
+  expect(dotTitles).toContain("Dagens schema");
+});
+
 test("Tid-redigerarens details-summary har anpassad stil utan native marker", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await prepareScheduledTournament(page);

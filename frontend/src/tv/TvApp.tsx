@@ -15,6 +15,11 @@ import type { Match, TvPayload } from "../shared/types";
 const tvCode = location.pathname.split("/").pop() || "";
 const slideSeconds = 10;
 const slides = ["live", "tables", "schedule"];
+const slideLabels: Record<string, string> = {
+  live: "Nu spelas",
+  tables: "Tabeller och slutspel",
+  schedule: "Dagens schema",
+};
 const tvEventNames = [
   "participant_added",
   "resource_added",
@@ -161,8 +166,8 @@ export function TvApp() {
         <TvBrand />
         <div className="tv-meta-block"><small>Turnering</small><strong title={tournament.name}>{tournament.name}</strong><span>{formatDate(tournament.starts_at)}</span></div>
         <div className="tv-clock"><strong>{formatClock(now)}</strong><span>{formatDate(now.toISOString())}</span></div>
-        <div className="tv-meta-block"><small>Sida {activeIndex + 1} av {slides.length}</small><strong>Nästa vy om {secondsLeft} s</strong></div>
-        <div className="tv-dots">{slides.map((slide, index) => <span key={slide} className={index === activeIndex ? "active" : undefined} />)}</div>
+        <div className="tv-meta-block"><small>Sida {activeIndex + 1} av {slides.length}</small><strong>{slideLabels[slides[activeIndex]]} · {secondsLeft} s</strong></div>
+        <div className="tv-dots">{slides.map((slide, index) => <span key={slide} title={slideLabels[slide]} className={index === activeIndex ? "active" : undefined} />)}</div>
       </header>
 
       <div className="tv-deck">
