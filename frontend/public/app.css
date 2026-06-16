@@ -1824,6 +1824,7 @@ body.tv {
 .tv-meta-block strong,
 .tv-clock strong {
   display: block;
+  min-width: 0;
   overflow: hidden;
   color: white;
   font-size: 27px;

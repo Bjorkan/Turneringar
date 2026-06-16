@@ -159,7 +159,7 @@ export function TvApp() {
     <>
       <header className="tv-topbar">
         <TvBrand />
-        <div className="tv-meta-block"><small>Turnering</small><strong>{tournament.name}</strong><span>{formatDate(tournament.starts_at)}</span></div>
+        <div className="tv-meta-block"><small>Turnering</small><strong title={tournament.name}>{tournament.name}</strong><span>{formatDate(tournament.starts_at)}</span></div>
         <div className="tv-clock"><strong>{formatClock(now)}</strong><span>{formatDate(now.toISOString())}</span></div>
         <div className="tv-meta-block"><small>Sida {activeIndex + 1} av {slides.length}</small><strong>Nästa vy om {secondsLeft} s</strong></div>
         <div className="tv-dots">{slides.map((slide, index) => <span key={slide} className={index === activeIndex ? "active" : undefined} />)}</div>
