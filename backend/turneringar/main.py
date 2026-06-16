@@ -36,6 +36,33 @@ RESOURCE_KINDS = {"court", "server", "table"}
 MAX_GROUP_COUNT = 64
 MAX_QUALIFIERS_PER_GROUP = 64
 
+RATE_LIMIT_ATTEMPTS = 5
+RATE_LIMIT_WINDOW = 60
+RATE_LIMIT_BLOCK = 300
+
+_rate_store: dict[str, list[float]] = {}
+
+def _rate_limit_ip(ip: str) -> None:
+    now = time.time()
+    entries = _rate_store.get(ip, [])
+    entries = [t for t in entries if now - t < RATE_LIMIT_WINDOW]
+
+    if len(entries) >= RATE_LIMIT_ATTEMPTS:
+        if entries and now - entries[0] < RATE_LIMIT_BLOCK:
+            raise HTTPException(status_code=429, detail="För många inloggningsförsök. Försök igen om några minuter.")
+        entries.clear()
+
+    entries.append(now)
+    _rate_store[ip] = entries
+
+
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 app = FastAPI(title="Turneringar API")
 app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIR / "static")), name="assets")
 
@@ -297,6 +324,7 @@ def session_status(request: Request) -> dict[str, Any]:
 
 @app.post("/api/admin/login")
 async def admin_login(request: Request) -> JSONResponse:
+    _rate_limit_ip(_client_ip(request))
     payload = await json_body(request)
     if payload.get("pin") != ADMIN_PIN:
         raise HTTPException(status_code=401, detail="Fel admin-PIN.")
@@ -637,6 +665,7 @@ def moderator_session(request: Request, token: str) -> dict[str, Any]:
 
 @app.post("/api/moderators/{token}/login")
 async def moderator_login(request: Request, token: str) -> JSONResponse:
+    _rate_limit_ip(_client_ip(request))
     payload = await json_body(request)
     with session() as conn:
         moderator = store.get_moderator_token(conn, token)

@@ -549,3 +549,16 @@ def test_static_frontends_are_served(client: ApiClient) -> None:
     assert client.get("/tv/123").status_code == 200
     assert client.get("/assets/app.js").status_code == 200
     assert client.get("/assets/tv.js").status_code == 200
+
+
+def test_rate_limit_blocks_after_many_failed_logins(client: ApiClient) -> None:
+    # Use a unique PIN to guarantee failures for this test
+    wrong_pin = "wrong-pin-" + str(os.getpid())
+    for _ in range(5):
+        resp = client.post("/api/admin/login", json={"pin": wrong_pin})
+        assert resp.status_code == 401
+
+    # 6th attempt should be rate limited
+    resp = client.post("/api/admin/login", json={"pin": wrong_pin})
+    assert resp.status_code == 429
+    assert "För många" in resp.text
