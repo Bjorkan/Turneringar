@@ -544,6 +544,65 @@ test("slutspelstabellen bryter långa lagnamn i standings", async ({ page }) => 
   expect(metrics!.wordBreak).toBe("break-word");
 });
 
+test("schemabrädan bryter långa resurs- och matchnamn i kolumnerna", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await loginAsAdmin(page);
+
+  const tournamentName = `Schedule Board ${Date.now()}`;
+  let response = await page.request.post("/api/tournaments", {
+    data: {
+      name: tournamentName,
+      starts_at: "2026-06-14T10:00",
+      group_count: 2,
+      qualifiers_per_group: 1,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+  const tournament = await response.json() as { id: number };
+
+  await page.request.post(`/api/tournaments/${tournament.id}/participants`, {
+    data: { name: "Lag 1", kind: "team", seed: 1 },
+  });
+  await page.request.post(`/api/tournaments/${tournament.id}/participants`, {
+    data: { name: "Lag 2", kind: "team", seed: 2 },
+  });
+
+  await page.request.post(`/api/tournaments/${tournament.id}/generate`, {
+    data: { confirm_reset: true },
+  });
+
+  const longName = `ObrutetExtremtLångtResursnamnSomMåsteBrytaIKolummenFörSchemaVyn${Date.now()}`;
+  response = await page.request.post(`/api/tournaments/${tournament.id}/resources`, {
+    data: { name: longName, kind: "court" },
+  });
+  expect(response.ok()).toBeTruthy();
+
+  await page.request.post(`/api/tournaments/${tournament.id}/schedule`);
+
+  await page.goto(`/tournaments/${tournament.id}#schema`);
+  await expect(page.getByRole("heading", { name: tournamentName })).toBeVisible();
+  await expect(page.getByText("Schema")).toBeVisible();
+
+  const metrics = await page.evaluate(() => {
+    const board = document.querySelector(".schedule-board");
+    if (!board) return null;
+    const firstHeader = board.querySelector<HTMLElement>(".resource-column header strong");
+    const firstMatch = board.querySelector<HTMLElement>(".resource-match strong");
+    const firstMatchStyle = firstMatch ? getComputedStyle(firstMatch) : null;
+    return {
+      documentWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
+      viewportWidth: window.innerWidth,
+      headerOverflowWrap: firstHeader ? getComputedStyle(firstHeader).overflowWrap : "",
+      matchOverflowWrap: firstMatchStyle?.overflowWrap ?? "",
+    };
+  });
+
+  expect(metrics).not.toBeNull();
+  expect(metrics!.documentWidth).toBeLessThanOrEqual((metrics!.viewportWidth ?? 0) + 10);
+  expect(metrics!.headerOverflowWrap).toBe("anywhere");
+  expect(metrics!.matchOverflowWrap).toBe("anywhere");
+});
+
 test("Live TV rymmer långa lagnamn på 1920-skärm", async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await loginAsAdmin(page);

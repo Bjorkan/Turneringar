@@ -142,6 +142,9 @@ Kod:
 
 Varje resurskolumn måste vara en hård layoutgräns. Text ska brytas eller trunkeras inne i kortet, inte rita över nästa kolumn.
 
+Status: Löst
+Jag gav `.resource-match` containern `min-width: 0` så flex/grid-layouten kan krympa korten. Resursnamnet i kolumnheadern och matchnamnet i korten fick `overflow-wrap: anywhere` så långa obrutna tokens bryts inuti kortet i stället för att rinna över till nästa kolumn. Datum och gruppinfo i `small` fick samma brytning via headern. Regressionstestet `frontend/tests/admin-flow.spec.ts::schemabrädan bryter långa resurs- och matchnamn i kolumnerna` skapar en resurs och match med extremt långa namn på 390 px och verifierar att dokumentet stannar inom viewporten.
+
 ## 8. "Alla matcher"-tabellen exploderar sidbredden
 
 Skärmdumpar:
