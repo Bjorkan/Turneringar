@@ -189,6 +189,7 @@ function AdminShell({
   active,
   tournamentId,
   notice,
+  adminPinDefault,
   children,
   onNavigate,
   onLogout,
@@ -198,6 +199,7 @@ function AdminShell({
   active: string;
   tournamentId: string | null;
   notice: Notice;
+  adminPinDefault: boolean;
   children: ReactNode;
   onNavigate: (path: string) => void;
   onLogout: () => void;
@@ -283,6 +285,7 @@ function AdminShell({
         </header>
         <main className="page" aria-live="polite">
           <NoticeBox notice={notice} onClear={onClear} />
+          {adminPinDefault ? <p className="pin-warning">Standard-PIN används. Ändra PIN i .env eller via terminalen för ökad säkerhet.</p> : null}
           {children}
         </main>
       </div>
@@ -1576,6 +1579,7 @@ export function AdminApp() {
       active={activeNav}
       tournamentId={tournamentId}
       notice={notice}
+      adminPinDefault={session.admin_pin_default}
       onNavigate={navigate}
       onLogout={logout}
       onNotice={showNotice}

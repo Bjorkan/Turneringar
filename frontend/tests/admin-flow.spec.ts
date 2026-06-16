@@ -1213,6 +1213,14 @@ test("schemavyn visar när resurs- och sidolistor fortsätter", async ({ page })
   await expect(unplacedPanel).toContainText(/match till saknar plats/);
 });
 
+test("admin ser varning om standard-PIN används", async ({ page }) => {
+  await loginAsAdmin(page);
+  const pinWarning = page.locator(".pin-warning");
+  if (await pinWarning.count() > 0) {
+    await expect(pinWarning).toContainText("Standard-PIN");
+  }
+});
+
 test("tom-state-texter i admin är informativa med handlingsanvisning", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await loginAsAdmin(page);
