@@ -424,6 +424,15 @@ kbd {
   margin-bottom: 20px;
 }
 
+.page-head > * {
+  min-width: 0;
+}
+
+.page-head h1,
+.page-head p {
+  overflow-wrap: anywhere;
+}
+
 .page-head p {
   margin-bottom: 0;
 }
@@ -771,6 +780,14 @@ kbd {
 
 .tournament-title {
   margin-bottom: 14px;
+}
+
+.tournament-title > div:first-child {
+  min-width: 0;
+}
+
+.tournament-title .actions {
+  flex: 0 1 auto;
 }
 
 .tournament-tabs {

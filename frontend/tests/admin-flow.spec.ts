@@ -50,6 +50,29 @@ async function addResource(page: Page, name: string) {
   await expect(page.locator("#schema")).toContainText(name);
 }
 
+async function expectNoHorizontalOverflow(page: Page) {
+  const metrics = await page.evaluate(() => {
+    const title = document.querySelector<HTMLElement>(".tournament-title");
+    const heading = document.querySelector<HTMLElement>(".tournament-title h1");
+    const titleBox = title?.getBoundingClientRect();
+    const headingBox = heading?.getBoundingClientRect();
+
+    return {
+      viewportWidth: window.innerWidth,
+      documentWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
+      titleRight: titleBox ? Math.ceil(titleBox.right) : 0,
+      headingRight: headingBox ? Math.ceil(headingBox.right) : 0,
+      headingScrollWidth: heading?.scrollWidth ?? 0,
+      headingClientWidth: heading?.clientWidth ?? 0,
+    };
+  });
+
+  expect(metrics.documentWidth).toBeLessThanOrEqual(metrics.viewportWidth + 1);
+  expect(metrics.titleRight).toBeLessThanOrEqual(metrics.viewportWidth + 1);
+  expect(metrics.headingRight).toBeLessThanOrEqual(metrics.viewportWidth + 1);
+  expect(metrics.headingScrollWidth).toBeLessThanOrEqual(metrics.headingClientWidth + 1);
+}
+
 async function prepareScheduledTournament(page: Page) {
   await loginAsAdmin(page);
   const tournament = await createTournament(page);
@@ -248,6 +271,33 @@ test("mobil adminvy börjar med toppbar och dold sidomeny", async ({ page }) => 
   const sidebarBox = await page.locator(".sidebar").boundingBox();
   if (!topbarBox || !sidebarBox) throw new Error("Mobilnavigationens layout kunde inte mätas.");
   expect(sidebarBox.y).toBeGreaterThanOrEqual(topbarBox.y + topbarBox.height - 1);
+});
+
+test("lång turneringsrubrik spräcker inte adminlayouten", async ({ browser }) => {
+  const longName = `ExtremtLångTurneringsrubrikUtanMellanslag${Date.now()}AlphaBetaGammaDeltaEpsilonZetaEtaThetaIotaKappaLambda`;
+
+  for (const viewport of [{ width: 390, height: 844 }, { width: 1366, height: 900 }]) {
+    const context = await browser.newContext({ viewport });
+    const page = await context.newPage();
+
+    await loginAsAdmin(page);
+    const response = await page.request.post("/api/tournaments", {
+      data: {
+        name: longName,
+        starts_at: "2026-12-14T10:00",
+        group_count: 2,
+        qualifiers_per_group: 1,
+      },
+    });
+    expect(response.ok()).toBeTruthy();
+    const tournament = await response.json() as { id: number };
+
+    await page.goto(`/tournaments/${tournament.id}#deltagare`);
+    await expect(page.getByRole("heading", { name: longName })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+
+    await context.close();
+  }
 });
 
 test("Live TV rymmer långa lagnamn på 1920-skärm", async ({ page }) => {

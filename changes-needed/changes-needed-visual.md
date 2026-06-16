@@ -29,6 +29,9 @@ Kod:
 
 Det här ska inte lösas med horisontell scroll. Rubriker måste ha `min-width: 0` i sina flex/grid-föräldrar och `overflow-wrap: anywhere` eller en medveten ellipsis/maxbredd.
 
+Status: Löst
+Jag gav `page-head` och turneringsrubrikens textkolumn `min-width: 0`, så flexlayouten får krympa rubriken i stället för att låta den styra dokumentbredden. Rubrik och underrad bryter nu långa obrutna tokens med `overflow-wrap: anywhere`, vilket gör att samma namn ryms på både mobil och desktop. Actionknapparna i titelraden får fortfarande sin plats, men rubrikblocket kan radbrytas utan horisontell scroll. Regressionstestet `frontend/tests/admin-flow.spec.ts::lång turneringsrubrik spräcker inte adminlayouten` skapar ett extremt långt namn i mobil- och desktopviewport och verifierar att dokument, rubrik och h1 håller sig inom viewporten.
+
 ## 2. Moderatorns sidhuvud spricker redan före inloggning
 
 Skärmdumpar:
