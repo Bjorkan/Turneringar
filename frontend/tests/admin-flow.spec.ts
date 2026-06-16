@@ -2,6 +2,12 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 
 const adminPin = "test-pin";
 
+function iso(hours: number = 0): string {
+  const d = new Date();
+  d.setHours(d.getHours() + hours);
+  return d.toISOString().slice(0, 16);
+}
+
 async function loginAsAdmin(page: Page) {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Logga in" })).toBeVisible();
@@ -17,7 +23,7 @@ async function createTournament(page: Page) {
   const form = page.locator("#create-tournament");
 
   await form.locator('input[name="name"]').fill(tournamentName);
-  await form.locator('input[name="starts_at"]').fill("2026-06-14T10:00");
+  await form.locator('input[name="starts_at"]').fill(iso(24));
   await form.locator('input[name="group_count"]').fill("2");
   await form.locator('input[name="qualifiers_per_group"]').fill("1");
   await form.getByRole("button", { name: "Skapa" }).click();
@@ -208,7 +214,7 @@ test("moderatorvyn filtrerar matcher med status och sök", async ({ page }) => {
   let response = await page.request.post("/api/tournaments", {
     data: {
       name: tournamentName,
-      starts_at: "2026-12-14T10:00",
+      starts_at: iso(72),
       group_count: 2,
       qualifiers_per_group: 1,
     },
@@ -287,7 +293,7 @@ test("lång turneringsrubrik spräcker inte adminlayouten", async ({ browser }) 
     const response = await page.request.post("/api/tournaments", {
       data: {
         name: longName,
-        starts_at: "2026-12-14T10:00",
+        starts_at: iso(72),
         group_count: 2,
         qualifiers_per_group: 1,
       },
@@ -311,7 +317,7 @@ test("moderatorns sidhuvud bryter långa turneringsnamn före och efter inloggni
   let response = await page.request.post("/api/tournaments", {
     data: {
       name: tournamentName,
-      starts_at: "2026-12-14T10:00",
+      starts_at: iso(72),
       group_count: 2,
       qualifiers_per_group: 1,
     },
@@ -345,7 +351,7 @@ test("deltagarlistan visar ellipsis och titel för långa namn", async ({ page }
   let response = await page.request.post("/api/tournaments", {
     data: {
       name: tournamentName,
-      starts_at: "2026-12-14T10:00",
+      starts_at: iso(72),
       group_count: 2,
       qualifiers_per_group: 1,
     },
@@ -396,7 +402,7 @@ test("deltagardetaljkortet bryter långa namn inom kortet", async ({ page }) => 
   let response = await page.request.post("/api/tournaments", {
     data: {
       name: tournamentName,
-      starts_at: "2026-12-14T10:00",
+      starts_at: iso(72),
       group_count: 2,
       qualifiers_per_group: 1,
     },
@@ -446,7 +452,7 @@ test("kvalificerade-listan bryter långa lagnamn i slutspelspanelen", async ({ p
   let response = await page.request.post("/api/tournaments", {
     data: {
       name: tournamentName,
-      starts_at: "2026-06-14T10:00",
+      starts_at: iso(24),
       group_count: 2,
       qualifiers_per_group: 1,
     },
@@ -497,7 +503,7 @@ test("slutspelstabellen bryter långa lagnamn i standings", async ({ page }) => 
   let response = await page.request.post("/api/tournaments", {
     data: {
       name: tournamentName,
-      starts_at: "2026-06-14T10:00",
+      starts_at: iso(24),
       group_count: 2,
       qualifiers_per_group: 1,
     },
@@ -553,7 +559,7 @@ test("schemabrädan bryter långa resurs- och matchnamn i kolumnerna", async ({ 
   let response = await page.request.post("/api/tournaments", {
     data: {
       name: tournamentName,
-      starts_at: "2026-06-14T10:00",
+      starts_at: iso(24),
       group_count: 2,
       qualifiers_per_group: 1,
     },
@@ -612,7 +618,7 @@ test("alla-matcher-tabellen exploderar inte sidbredden", async ({ page }) => {
   let response = await page.request.post("/api/tournaments", {
     data: {
       name: tournamentName,
-      starts_at: "2026-06-14T10:00",
+      starts_at: iso(24),
       group_count: 2,
       qualifiers_per_group: 1,
     },
@@ -669,7 +675,7 @@ test("tid-editorn trycker inte iväg åtgärdskolumnen", async ({ page }) => {
   let response = await page.request.post("/api/tournaments", {
     data: {
       name: tournamentName,
-      starts_at: "2026-06-14T10:00",
+      starts_at: iso(24),
       group_count: 2,
       qualifiers_per_group: 1,
     },
@@ -726,7 +732,7 @@ test("poängdialogens matchnamn överlappar inte", async ({ page }) => {
   let response = await page.request.post("/api/tournaments", {
     data: {
       name: tournamentName,
-      starts_at: "2026-06-14T10:00",
+      starts_at: iso(24),
       group_count: 2,
       qualifiers_per_group: 1,
     },
@@ -785,7 +791,7 @@ test("poängdialogens mobilknappar syns på 390 px", async ({ page }) => {
   let response = await page.request.post("/api/tournaments", {
     data: {
       name: tournamentName,
-      starts_at: "2026-06-14T10:00",
+      starts_at: iso(24),
       group_count: 2,
       qualifiers_per_group: 1,
     },
@@ -843,7 +849,7 @@ test("tv- och moderatorformulär blir inte absurt höga på mobil", async ({ pag
   let response = await page.request.post("/api/tournaments", {
     data: {
       name: tournamentName,
-      starts_at: "2026-06-14T10:00",
+      starts_at: iso(24),
       group_count: 2,
       qualifiers_per_group: 1,
     },
@@ -875,7 +881,7 @@ test("tv-länkskort ryms på mobil", async ({ page }) => {
   let response = await page.request.post("/api/tournaments", {
     data: {
       name: `TV Mobile ${Date.now()}`,
-      starts_at: "2026-06-14T10:00",
+      starts_at: iso(24),
       group_count: 2,
       qualifiers_per_group: 1,
     },
@@ -903,7 +909,7 @@ test("moderatorns matchkort bryter långa namn", async ({ page }) => {
   let response = await page.request.post("/api/tournaments", {
     data: {
       name: tournamentName,
-      starts_at: "2026-12-14T10:00",
+      starts_at: iso(72),
       group_count: 2,
       qualifiers_per_group: 1,
     },
@@ -965,7 +971,7 @@ test("Live TV rymmer långa lagnamn på 1920-skärm", async ({ page }) => {
   let response = await page.request.post("/api/tournaments", {
     data: {
       name: tournamentName,
-      starts_at: "2026-06-14T10:00",
+      starts_at: iso(24),
       group_count: 2,
       qualifiers_per_group: 1,
     },
@@ -1035,7 +1041,7 @@ test("Live TV visar när listor fortsätter utanför sliden", async ({ page }) =
   let response = await page.request.post("/api/tournaments", {
     data: {
       name: tournamentName,
-      starts_at: "2026-12-14T10:00",
+      starts_at: iso(72),
       group_count: 3,
       qualifiers_per_group: 1,
     },
@@ -1090,7 +1096,7 @@ test("Live TV behåller aktiv slide vid SSE-refresh", async ({ page }) => {
   let response = await page.request.post("/api/tournaments", {
     data: {
       name: tournamentName,
-      starts_at: "2026-12-14T10:00",
+      starts_at: iso(72),
       group_count: 2,
       qualifiers_per_group: 1,
     },
@@ -1147,7 +1153,7 @@ test("admin visar alla grupptabeller i slutspelsvyn", async ({ page }) => {
   let response = await page.request.post("/api/tournaments", {
     data: {
       name: tournamentName,
-      starts_at: "2026-12-14T10:00",
+      starts_at: iso(72),
       group_count: 3,
       qualifiers_per_group: 1,
     },
@@ -1179,7 +1185,7 @@ test("schemavyn visar när resurs- och sidolistor fortsätter", async ({ page })
   let response = await page.request.post("/api/tournaments", {
     data: {
       name: tournamentName,
-      starts_at: "2026-12-14T10:00",
+      starts_at: iso(72),
       group_count: 4,
       qualifiers_per_group: 2,
     },
@@ -1265,7 +1271,7 @@ test("TV-slide-dots har title med slide-namn och topbar visar aktuell slide", as
   let response = await page.request.post("/api/tournaments", {
     data: {
       name: tournamentName,
-      starts_at: "2026-06-14T10:00",
+      starts_at: iso(24),
       group_count: 2,
       qualifiers_per_group: 1,
     },
@@ -1394,7 +1400,7 @@ test("TV-topbarens turneringsnamn har ellipsis och title för långa namn", asyn
   let response = await page.request.post("/api/tournaments", {
     data: {
       name: tournamentName,
-      starts_at: "2026-06-14T10:00",
+      starts_at: iso(24),
       group_count: 2,
       qualifiers_per_group: 1,
     },
@@ -1459,7 +1465,7 @@ test("TV Härnäst-panelen bryter inte tabellayouten med långa lagnamn", async 
   let response = await page.request.post("/api/tournaments", {
     data: {
       name: tournamentName,
-      starts_at: "2026-06-14T10:00",
+      starts_at: iso(24),
       group_count: 2,
       qualifiers_per_group: 1,
     },
@@ -1521,7 +1527,7 @@ test("TV-schemalayouten klipper inte nederkant med långa lagnamn", async ({ pag
   let response = await page.request.post("/api/tournaments", {
     data: {
       name: tournamentName,
-      starts_at: "2026-06-14T10:00",
+      starts_at: iso(24),
       group_count: 2,
       qualifiers_per_group: 1,
     },
@@ -1582,7 +1588,7 @@ test("TV-tabeller i slutspelsvyn bryter långa lagnamn i standings", async ({ pa
   let response = await page.request.post("/api/tournaments", {
     data: {
       name: tournamentName,
-      starts_at: "2026-06-14T10:00",
+      starts_at: iso(24),
       group_count: 2,
       qualifiers_per_group: 1,
     },

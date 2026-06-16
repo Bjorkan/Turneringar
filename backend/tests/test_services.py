@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import tempfile
 import unittest
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from turneringar import services, store
 from turneringar.db import connect, initialize_database
+
+
+def _iso(hours: int = 0) -> str:
+    return (datetime.now(timezone.utc) + timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M")
 
 
 class TournamentServiceTests(unittest.TestCase):
@@ -31,7 +35,7 @@ class TournamentServiceTests(unittest.TestCase):
             tournament_id = store.create_tournament(
                 self.conn,
                 "Testcupen",
-                starts_at="2026-06-13T09:00",
+                starts_at=_iso(),
                 match_minutes=20,
                 break_minutes=5,
                 group_count=group_count,
@@ -324,7 +328,7 @@ class TournamentServiceTests(unittest.TestCase):
             tournament_id,
             fixed_match["id"],
             resource["id"],
-            "2026-06-13T09:00",
+            _iso(),
             90,
         )
         self.assertEqual([], errors)
@@ -335,7 +339,7 @@ class TournamentServiceTests(unittest.TestCase):
         updated_next = store.get_match(self.conn, next_match["id"])
         self.assertGreaterEqual(
             services.parse_local_datetime(updated_next["scheduled_at"]),
-            services.parse_local_datetime("2026-06-13T10:35"),
+            services.parse_local_datetime(_iso(hours=1)),
         )
 
     def test_manual_override_rejects_resource_conflict(self) -> None:
@@ -376,7 +380,7 @@ class TournamentServiceTests(unittest.TestCase):
             tournament_id,
             match["id"],
             foreign_resource["id"],
-            "2026-06-13T10:00",
+            _iso(hours=1),
             20,
         )
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from datetime import datetime, timedelta, timezone
 import json
 import os
 from pathlib import Path
@@ -14,6 +15,10 @@ from urllib.request import HTTPCookieProcessor, Request, build_opener
 
 import pytest
 from http.cookiejar import CookieJar
+
+
+def _iso(hours: int = 0) -> str:
+    return (datetime.now(timezone.utc) + timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M")
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -137,7 +142,7 @@ def create_ready_tournament(client: ApiClient) -> int:
         "/api/tournaments",
         json={
             "name": "API Hårdkoll",
-            "starts_at": "2026-06-13T09:00",
+            "starts_at": _iso(),
             "group_count": 2,
             "qualifiers_per_group": 1,
         },
@@ -340,7 +345,7 @@ def test_moderators_cannot_update_unscheduled_matches(client: ApiClient) -> None
         "/api/tournaments",
         json={
             "name": "Oplacerad Cup",
-            "starts_at": "2026-06-13T09:00",
+            "starts_at": _iso(),
             "group_count": 2,
             "qualifiers_per_group": 1,
         },
@@ -475,7 +480,7 @@ def test_tournament_structure_values_are_limited(client: ApiClient) -> None:
     response = client.patch(
         f"/api/tournaments/{tournament_id}/settings",
         json={
-            "starts_at": "2026-06-13T09:00",
+            "starts_at": _iso(),
             "match_minutes": 20,
             "break_minutes": 5,
             "group_count": 999,
