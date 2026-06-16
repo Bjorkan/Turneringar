@@ -1569,10 +1569,25 @@ label {
 }
 
 .row-actions summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   width: max-content;
   cursor: pointer;
   color: var(--blue);
   font-weight: 800;
+  list-style: none;
+}
+
+.row-actions summary::marker,
+.row-actions summary::-webkit-details-marker {
+  display: none;
+}
+
+.row-actions summary::before {
+  content: "✎";
+  font-size: 16px;
+  line-height: 1;
 }
 
 .row-actions[open] {

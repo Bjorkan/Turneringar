@@ -1213,6 +1213,35 @@ test("schemavyn visar när resurs- och sidolistor fortsätter", async ({ page })
   await expect(unplacedPanel).toContainText(/match till saknar plats/);
 });
 
+test("Tid-redigerarens details-summary har anpassad stil utan native marker", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await prepareScheduledTournament(page);
+  await page.locator(".tournament-tabs").getByRole("link", { name: "Matcher" }).click();
+
+  const summary = page.locator(".row-actions summary").first();
+  await expect(summary).toBeVisible();
+
+  const styles = await page.evaluate(() => {
+    const s = document.querySelector<HTMLElement>(".row-actions summary");
+    if (!s) return null;
+    const style = window.getComputedStyle(s);
+    return {
+      display: style.display,
+      alignItems: style.alignItems,
+    };
+  });
+  expect(styles).not.toBeNull();
+  expect(styles!.display).toBe("inline-flex");
+  expect(styles!.alignItems).toBe("center");
+
+  const beforeContent = await page.evaluate(() => {
+    const s = document.querySelector<HTMLElement>(".row-actions summary");
+    if (!s) return null;
+    return window.getComputedStyle(s, "::before").content;
+  });
+  expect(beforeContent).toContain("✎");
+});
+
 test("inputs och selects med långa värden har title-attribut", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await loginAsAdmin(page);
