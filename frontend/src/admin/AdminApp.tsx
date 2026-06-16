@@ -1198,7 +1198,7 @@ function TournamentView({
                   {moderators[0] ? (
                     <>
                       <div className="share-link"><span>/m/{moderators[0].token}</span><a href={`/m/${moderators[0].token}`}>Öppna</a></div>
-                      <div className="qr-placeholder" aria-hidden="true"><span>T</span></div>
+                      <button type="button" className="button share-copy" onClick={() => { navigator.clipboard.writeText(window.location.origin + `/m/${moderators[0].token}`); }}>Kopiera länk</button>
                       <p>{moderators[0].label}</p>
                     </>
                   ) : <p className="empty">Skapa en länk för att visa delning.</p>}

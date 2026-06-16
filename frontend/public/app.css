@@ -1130,28 +1130,8 @@ button.filter-chip:focus-visible {
   white-space: nowrap;
 }
 
-.qr-placeholder {
-  display: grid;
-  width: 116px;
-  height: 116px;
-  place-items: center;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background:
-    linear-gradient(90deg, #111827 9px, transparent 9px) 0 0 / 22px 22px,
-    linear-gradient(#111827 9px, transparent 9px) 0 0 / 22px 22px,
-    #f8fbff;
-}
-
-.qr-placeholder span {
-  display: grid;
-  width: 42px;
-  height: 42px;
-  place-items: center;
-  border-radius: 8px;
-  background: white;
-  color: var(--blue);
-  font-weight: 900;
+.share-copy {
+  width: 100%;
 }
 
 .tv-admin-main {
