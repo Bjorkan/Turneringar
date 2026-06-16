@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -476,6 +477,88 @@ class TournamentServiceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "finns inte"):
             with self.conn:
                 store.delete_moderator_token(self.conn, 999999)
+
+
+class DatabaseMigrationTests(unittest.TestCase):
+    def test_migration_from_initial_to_latest(self) -> None:
+        tmpdir = tempfile.TemporaryDirectory()
+        db_path = Path(tmpdir.name) / "test.sqlite3"
+        try:
+            # 1) Apply all current migrations to get a fresh baseline
+            initialize_database(db_path)
+
+            conn = connect(db_path)
+            try:
+                # 2) Roll back to "old" state: drop tv_links, remove 002 from history
+                conn.execute("DROP TABLE IF EXISTS tv_links")
+                conn.execute("DELETE FROM schema_migrations WHERE version = '002'")
+                conn.commit()
+
+                # 3) Verify old state: tv_links gone, only 001 in history
+                tables = {
+                    r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+                }
+                self.assertIn("tournaments", tables, "base tables should survive rollback")
+                self.assertIn("participants", tables)
+                self.assertNotIn("tv_links", tables, "tv_links should not exist in old state")
+                versions = {
+                    r["version"]
+                    for r in conn.execute("SELECT version FROM schema_migrations ORDER BY version")
+                }
+                self.assertEqual(versions, {"001"})
+
+                # 4) Insert test data via store layer
+                tournament_id = store.create_tournament(
+                    conn, "Migration Cup", starts_at=_iso(24),
+                    group_count=2, qualifiers_per_group=1,
+                )
+                for seed, name in enumerate(["Team A", "Team B"], start=1):
+                    store.add_participant(conn, tournament_id, name, "team", seed)
+                store.add_resource(conn, tournament_id, "Plan 1", "court")
+                conn.commit()
+            finally:
+                conn.close()
+
+            # 5) Run migration to latest — should apply only 002
+            initialize_database(db_path)
+
+            # 6) Verify old data is intact via store layer
+            conn2 = connect(db_path)
+            try:
+                restored = store.get_tournament(conn2, tournament_id)
+                self.assertIsNotNone(restored)
+                if restored is None:
+                    return
+                self.assertEqual(restored["name"], "Migration Cup")
+                participants = store.list_participants(conn2, tournament_id)
+                self.assertEqual(len(participants), 2)
+                resources = store.list_resources(conn2, tournament_id)
+                self.assertEqual(len(resources), 1)
+                self.assertEqual(resources[0]["name"], "Plan 1")
+
+                # 7) Verify tv_links table was created by migration 002
+                tables2 = {
+                    r[0] for r in conn2.execute("SELECT name FROM sqlite_master WHERE type='table'")
+                }
+                self.assertIn("tv_links", tables2, "tv_links should exist after migration")
+
+                # 8) Verify we can write to tv_links via store layer
+                link = store.create_tv_link(conn2, "Testskärm", code="TV00000001")
+                self.assertIsNotNone(link)
+                self.assertEqual(link["code"], "TV00000001")
+                self.assertEqual(link["label"], "Testskärm")
+
+                # 9) Verify migration 002 is now recorded
+                versions2 = {
+                    r["version"]
+                    for r in conn2.execute("SELECT version FROM schema_migrations ORDER BY version")
+                }
+                self.assertIn("002", versions2, "Migration 002 should be recorded")
+                self.assertIn("001", versions2, "Migration 001 should still be recorded")
+            finally:
+                conn2.close()
+        finally:
+            tmpdir.cleanup()
 
 
 if __name__ == "__main__":
