@@ -120,7 +120,7 @@ async def json_body(request: Request) -> dict[str, Any]:
         return {}
     try:
         body = await request.json()
-    except ValueError as exc:
+    except Exception as exc:
         raise HTTPException(status_code=400, detail="Ogiltig JSON.") from exc
     if not isinstance(body, dict):
         raise HTTPException(status_code=400, detail="JSON-objekt krävs.")
