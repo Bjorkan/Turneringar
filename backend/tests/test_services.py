@@ -576,7 +576,7 @@ class DatabaseErrorHandlingTests(unittest.TestCase):
             db_path.write_bytes(b"Not a valid SQLite database at all\x00\x00\x00")
             with self.assertRaises((sqlite3.DatabaseError, sqlite3.OperationalError)):
                 conn = connect(db_path)
-                conn.execute("SELECT 1")
+                conn.execute("SELECT COUNT(*) FROM sqlite_master")
                 conn.close()
         finally:
             tmpdir.cleanup()
