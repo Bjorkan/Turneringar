@@ -2590,6 +2590,13 @@ body.tv {
     flex-direction: column;
   }
 
+  .moderator-create-form label,
+  .tv-create-form label {
+    flex: 0 1 auto;
+    width: 100%;
+    max-width: 100%;
+  }
+
   .tournament-card {
     grid-template-columns: 52px minmax(0, 1fr);
   }

@@ -241,6 +241,9 @@ Kod:
 
 Det här är en direkt CSS-bugg. Label-basis ska inte bli vertikal höjd i mobilkolumn.
 
+Status: Löst
+Jag lade till en mobil-mediaquery som åsidosätter `.moderator-create-form label` och `.tv-create-form label` så deras `flex-basis` blir `auto` i stället för `240px` när `.inline-form` byter till kolumnlayout. Labels får i stället `width: 100%` och `max-width: 100%` så de fyller hela bredden utan att bli onödigt höga. Regressionstestet `frontend/tests/admin-flow.spec.ts::tv- och moderatorformulär blir inte absurt höga på mobil` skapar en TV-länk och moderatorlänk på 390 px och mäter att label-elementen har proportionerlig höjd.
+
 ## 13. Moderator-admins skapandeformulär har samma trasiga mobilhöjd
 
 Skärmdump:
@@ -256,6 +259,9 @@ Kod:
 - `frontend/public/app.css:2247-2254` staplar formuläret på mobil.
 
 Samma rotorsak som ovan, men i en annan användarväg.
+
+Status: Löst
+Samma mobilmediaquery fixar både TV- och moderator-create-formulären genom att sätta `flex: 0 1 auto` och `width: 100%` på labels när formuläret staplas vertikalt. Regressionstestet täcker båda formulären.
 
 ## 14. TV-länkskort på mobil är bredare än viewporten
 
