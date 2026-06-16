@@ -65,11 +65,13 @@ jobs:
 
       - name: Smoke-testa testimagen
         run: |
+          docker volume create turneringar-test-data
           docker run -d --name turneringar-test -p 8000:8000 \
+            -v turneringar-test-data:/data/turneringar \
             -e ADMIN_PIN=test-pin \
             -e TURNERINGAR_DB=/data/turneringar/test.sqlite3 \
             turneringar:test
-          trap 'docker logs turneringar-test || true; docker rm -f turneringar-test || true' EXIT
+          trap 'docker logs turneringar-test || true; docker rm -f turneringar-test || true; docker volume rm turneringar-test-data || true' EXIT
           for attempt in {1..30}; do
             if curl --fail --silent http://127.0.0.1:8000/api/session > /tmp/session.json; then
               break
@@ -88,6 +90,45 @@ jobs:
           test -s /tmp/app.js
           test -s /tmp/tv.js
           test -s /tmp/react-chunk.js
+
+      - name: Testa datapersistens efter omstart
+        run: |
+          # Skapa data via API
+          curl --fail --silent -c /tmp/cookies.txt -b /tmp/cookies.txt \
+            -X POST http://127.0.0.1:8000/api/admin/login \
+            -H "Content-Type: application/json" \
+            -d '{"pin":"test-pin"}' > /tmp/login.json
+          curl --fail --silent -c /tmp/cookies.txt -b /tmp/cookies.txt \
+            -X POST http://127.0.0.1:8000/api/tournaments \
+            -H "Content-Type: application/json" \
+            -d '{"name":"Persistens-test","starts_at":"2028-01-01T10:00","group_count":2,"qualifiers_per_group":1}' > /tmp/create.json
+          tournament_id=$(python3 -c "import json;print(json.load(open('/tmp/create.json'))['id'])")
+          test -n "$tournament_id"
+
+          # Starta om containern
+          docker stop turneringar-test
+          docker rm turneringar-test
+          docker run -d --name turneringar-test -p 8000:8000 \
+            -v turneringar-test-data:/data/turneringar \
+            -e ADMIN_PIN=test-pin \
+            -e TURNERINGAR_DB=/data/turneringar/test.sqlite3 \
+            turneringar:test
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8000/api/session > /dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+
+          # Verifiera att turneringen finns kvar efter omstart
+          curl --fail --silent -c /tmp/cookies.txt -b /tmp/cookies.txt \
+            -X POST http://127.0.0.1:8000/api/admin/login \
+            -H "Content-Type: application/json" \
+            -d '{"pin":"test-pin"}' > /dev/null
+          curl --fail --silent -c /tmp/cookies.txt -b /tmp/cookies.txt \
+            "http://127.0.0.1:8000/api/tournaments" > /tmp/tournaments.json
+          grep -q "Persistens-test" /tmp/tournaments.json
+          echo "Data persisted across restart!"
 
   publicera:
     name: Publicera Docker-image
