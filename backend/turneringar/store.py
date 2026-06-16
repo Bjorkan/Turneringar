@@ -61,7 +61,9 @@ def create_tournament(
             qualifiers_per_group,
         ),
     )
-    return int(cursor.lastrowid)
+    row_id = cursor.lastrowid
+    assert row_id is not None
+    return int(row_id)
 
 
 def list_tournaments(conn: sqlite3.Connection) -> list[dict]:
@@ -134,7 +136,9 @@ def add_participant(
         """,
         (tournament_id, name.strip(), kind, seed),
     )
-    return int(cursor.lastrowid)
+    row_id = cursor.lastrowid
+    assert row_id is not None
+    return int(row_id)
 
 
 def list_participants(conn: sqlite3.Connection, tournament_id: int) -> list[dict]:
@@ -164,7 +168,9 @@ def add_resource(
         """,
         (tournament_id, name.strip(), kind),
     )
-    return int(cursor.lastrowid)
+    row_id = cursor.lastrowid
+    assert row_id is not None
+    return int(row_id)
 
 
 def list_resources(
@@ -285,7 +291,11 @@ def create_tv_link(
         """,
         (normalized, label.strip() or "Live TV"),
     )
-    return get_tv_link_by_id(conn, int(cursor.lastrowid))
+    row_id = cursor.lastrowid
+    assert row_id is not None
+    link = get_tv_link_by_id(conn, int(row_id))
+    assert link is not None
+    return link
 
 
 def update_tv_link(
@@ -371,7 +381,11 @@ def create_moderator_token(
         """,
         (tournament_id, resource_id, label.strip(), pin, token),
     )
-    return get_moderator_token_by_id(conn, int(cursor.lastrowid))
+    row_id = cursor.lastrowid
+    assert row_id is not None
+    token_data = get_moderator_token_by_id(conn, int(row_id))
+    assert token_data is not None
+    return token_data
 
 
 def delete_moderator_token(conn: sqlite3.Connection, token_id: int) -> None:
@@ -441,7 +455,9 @@ def add_event(
         """,
         (tournament_id, kind, json.dumps(payload, ensure_ascii=False)),
     )
-    return int(cursor.lastrowid)
+    row_id = cursor.lastrowid
+    assert row_id is not None
+    return int(row_id)
 
 
 def list_recent_events(

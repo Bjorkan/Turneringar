@@ -184,6 +184,7 @@ class TournamentServiceTests(unittest.TestCase):
         services.update_match_score(self.conn, tournament_id, group_match["id"], 1, 0)
 
         updated = store.get_match(self.conn, group_match["id"])
+        assert updated is not None
         self.assertEqual("in_progress", updated["status"])
         self.assertEqual("1 - 0", updated["score_label"])
         standings = services.group_standings(self.conn, tournament_id)
@@ -252,6 +253,7 @@ class TournamentServiceTests(unittest.TestCase):
             services.update_match_result(self.conn, tournament_id, semifinal["id"], 1, 1)
 
         updated = store.get_match(self.conn, semifinal["id"])
+        assert updated is not None
         self.assertNotEqual("completed", updated["status"])
 
     def test_completed_match_result_cannot_be_changed(self) -> None:
@@ -268,6 +270,7 @@ class TournamentServiceTests(unittest.TestCase):
             services.update_match_result(self.conn, tournament_id, match["id"], 9, 0)
 
         updated = store.get_match(self.conn, match["id"])
+        assert updated is not None
         self.assertEqual("2 - 1", updated["score_label"])
 
     def test_single_member_groups_seed_and_advance_byes_after_generate(self) -> None:
@@ -305,6 +308,7 @@ class TournamentServiceTests(unittest.TestCase):
         services.schedule_matches(self.conn, tournament_id)
 
         updated = store.get_match(self.conn, match["id"])
+        assert updated is not None
         self.assertEqual("in_progress", updated["status"])
         self.assertEqual(match["scheduled_at"], updated["scheduled_at"])
         self.assertEqual(match["resource_id"], updated["resource_id"])
@@ -339,6 +343,7 @@ class TournamentServiceTests(unittest.TestCase):
         services.schedule_matches(self.conn, tournament_id)
 
         updated_next = store.get_match(self.conn, next_match["id"])
+        assert updated_next is not None
         self.assertGreaterEqual(
             services.parse_local_datetime(updated_next["scheduled_at"]),
             services.parse_local_datetime(_iso(hours=1)),
@@ -388,6 +393,7 @@ class TournamentServiceTests(unittest.TestCase):
 
         self.assertEqual(["Resursen hör inte till turneringen."], errors)
         updated = store.get_match(self.conn, match["id"])
+        assert updated is not None
         self.assertIsNone(updated["resource_id"])
 
     def test_moderator_token_scope_limits_resource_updates(self) -> None:
@@ -411,8 +417,8 @@ class TournamentServiceTests(unittest.TestCase):
             if match["resource_id"] != resources[0]["id"] and out_of_scope is None:
                 out_of_scope = match
 
-        self.assertIsNotNone(in_scope)
-        self.assertIsNotNone(out_of_scope)
+        assert in_scope is not None
+        assert out_of_scope is not None
         self.assertTrue(services.moderator_can_update_match(self.conn, moderator, in_scope["id"]))
         self.assertFalse(services.moderator_can_update_match(self.conn, moderator, out_of_scope["id"]))
 

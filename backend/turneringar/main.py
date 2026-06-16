@@ -470,11 +470,13 @@ async def update_settings(request: Request, tournament_id: int) -> dict[str, Any
     require_admin(request)
     payload = await json_body(request)
     with session() as conn:
+        starts_at = parse_local_datetime_value(payload.get("starts_at"), "Start", store.default_start_time())
+        assert starts_at is not None
         with conn:
             store.update_tournament_settings(
                 conn,
                 tournament_id,
-                parse_local_datetime_value(payload.get("starts_at"), "Start", store.default_start_time()),
+                starts_at,
                 parse_int(payload.get("match_minutes"), 20) or 20,
                 parse_int(payload.get("break_minutes"), 5) or 5,
                 parse_limited_int(payload, "group_count", "Grupper", 2, MAX_GROUP_COUNT),

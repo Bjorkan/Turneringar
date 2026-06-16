@@ -105,6 +105,7 @@ def generate_structure(
                 """,
                 (group_stage_id, name, index + 1),
             ).lastrowid
+            assert group_id is not None
             created_groups.append({"id": int(group_id), "name": name, "members": members})
 
             for participant in members:
@@ -227,6 +228,7 @@ def build_knockout_stage(
                 match_minutes,
             ),
         ).lastrowid
+        assert match_id is not None
         previous_round.append(int(match_id))
         previous_round_names[int(match_id)] = match_name
 
@@ -261,6 +263,7 @@ def build_knockout_stage(
                     match_minutes,
                 ),
             ).lastrowid
+            assert match_id is not None
             next_round.append(int(match_id))
             next_round_names[int(match_id)] = match_name
         previous_round = next_round
