@@ -1,15 +1,28 @@
 import { defineConfig, devices } from "@playwright/test";
-import { existsSync } from "node:fs";
+import { createServer } from "net";
+import { existsSync } from "fs";
 
-const port = 8010;
+function freePortSync(): number {
+  const server = createServer();
+  server.listen(0, "127.0.0.1");
+  const address = server.address();
+  if (address && typeof address === "object") {
+    const port = address.port;
+    server.close();
+    return port;
+  }
+  return 8010;
+}
+
+const port = freePortSync();
 const dbPath = `.tmp/playwright/turneringar-${process.pid}.sqlite3`;
 const python = process.env.PYTHON_BIN || (existsSync(".venv/bin/python") ? ".venv/bin/python" : "python3");
 
 export default defineConfig({
   testDir: "./frontend/tests",
   outputDir: ".tmp/playwright/test-results",
-  fullyParallel: false,
-  workers: 1,
+  fullyParallel: true,
+  workers: process.env.CI ? 2 : 1,
   timeout: 45_000,
   expect: {
     timeout: 8_000,

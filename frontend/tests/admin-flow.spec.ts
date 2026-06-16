@@ -1681,3 +1681,19 @@ test("delningskortet visar kopiera-länk i stället för falsk QR-kod", async ({
   await expect(page.locator(".share-card")).toContainText("Kopiera länk");
   await expect(page.locator(".share-copy")).toBeVisible();
 });
+
+test("två samtidiga adminsessioner kan ladda turneringar parallellt", async ({ browser }) => {
+  const ctx1 = await browser.newContext();
+  const ctx2 = await browser.newContext();
+  const page1 = await ctx1.newPage();
+  const page2 = await ctx2.newPage();
+
+  await loginAsAdmin(page1);
+  await loginAsAdmin(page2);
+
+  await expect(page1.getByRole("heading", { name: "Turneringar" })).toBeVisible();
+  await expect(page2.getByRole("heading", { name: "Turneringar" })).toBeVisible();
+
+  await ctx1.close();
+  await ctx2.close();
+});
