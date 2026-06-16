@@ -565,7 +565,7 @@ function LiveTvAdmin({ onNotice, onError }: { onNotice: NoticeHandler; onError: 
                         <span className={`status-badge ${link.tournament_id ? "success" : "neutral"}`}>{link.tournament_id ? "Aktiv" : "Väntar"}</span>
                       </header>
                       <div className="tv-link-url">
-                        <input value={tvUrl(link)} readOnly aria-label="TV-länk" />
+                        <input value={tvUrl(link)} readOnly aria-label="TV-länk" title={tvUrl(link)} />
                         <a className="button subtle" href={`/tv/${link.code}`} target="_blank" rel="noreferrer">Öppna</a>
                       </div>
                       {draft ? (
@@ -1102,7 +1102,7 @@ function TournamentView({
                             <summary>Tid</summary>
                             <form className="tiny-form slot-form" onSubmit={(event) => { event.preventDefault(); void submitForm(`/api/tournaments/${id}/matches/${match.id}/slot`, "PATCH", event.currentTarget, "Match flyttad."); }}>
                               <input name="scheduled_at" type="datetime-local" defaultValue={match.scheduled_at || tournament.starts_at || ""} required />
-                              <select name="resource_id" defaultValue={match.resource_id || ""} required>
+                              <select name="resource_id" defaultValue={match.resource_id || ""} required title={resources.find((r) => r.id === match.resource_id)?.name || "Välj plats"}>
                                 <option value="" disabled>Välj plats</option>
                                 {resources.map((resource) => <option key={resource.id} value={resource.id}>{resource.name}</option>)}
                               </select>

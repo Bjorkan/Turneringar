@@ -1213,6 +1213,27 @@ test("schemavyn visar när resurs- och sidolistor fortsätter", async ({ page })
   await expect(unplacedPanel).toContainText(/match till saknar plats/);
 });
 
+test("inputs och selects med långa värden har title-attribut", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await loginAsAdmin(page);
+
+  const tvUrlTest = page.locator("#new-tv-link input[name=\"code\"]");
+  await expect(tvUrlTest).toBeVisible();
+
+  const tvCode = `TT${Date.now().toString().slice(-8)}`;
+  const tvForm = page.locator("#new-tv-link form");
+  await tvForm.locator('input[name="label"]').fill("Test TV");
+  await tvForm.locator('input[name="code"]').fill(tvCode);
+  await tvForm.getByRole("button", { name: "Skapa länk" }).click();
+  await expect(page.getByRole("status")).toContainText("Live TV-länk skapad.");
+
+  const tvUrlInput = page.locator(".tv-link-url input");
+  await expect(tvUrlInput).toBeVisible();
+  const titleAttr = await tvUrlInput.getAttribute("title");
+  expect(titleAttr).toBeTruthy();
+  expect(titleAttr).toContain("/tv/");
+});
+
 test("admin-flikarna har horisontell scrollindikator på mobil", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await loginAsAdmin(page);
