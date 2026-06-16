@@ -554,6 +554,7 @@ function LiveTvAdmin({ onNotice, onError }: { onNotice: NoticeHandler; onError: 
               <label>Etikett <input name="label" placeholder="Entré, hallskärm eller stream" /></label>
               <label>Egen kod <input name="code" maxLength={10} pattern="[A-Za-z0-9]{10}" placeholder="10 tecken, valfritt" /></label>
               <button type="submit">Skapa länk</button>
+              <p className="form-hint">Koden måste vara exakt 10 alfanumeriska tecken. Lämna tomt för slumpad kod.</p>
             </form>
           </section>
 
@@ -1197,6 +1198,7 @@ function TournamentView({
                   <label>Etikett <input name="label" required placeholder="Moderator plan 1" /></label>
                   <label>Resurs <select name="resource_id" defaultValue=""><option value="">Alla resurser</option>{resources.map((resource) => <option key={resource.id} value={resource.id}>{resource.name}</option>)}</select></label>
                   <button type="submit">Skapa länk</button>
+                  <p className="form-hint">Begränsa moderatorn till en specifik resurs, eller lämna \"Alla resurser\" för full tillgång i turneringen.</p>
                 </form>
               </section>
 
@@ -1281,13 +1283,14 @@ function TournamentView({
               <button type="button" className="icon-button" aria-label="Stäng" onClick={() => setScoreDialog(null)}>×</button>
             </div>
             <div className="score-matchup">
-              <strong>{scoreDialog.side_a}</strong>
+              <strong title={scoreDialog.side_a}>{scoreDialog.side_a}</strong>
               <span>vs</span>
-              <strong>{scoreDialog.side_b}</strong>
+              <strong title={scoreDialog.side_b}>{scoreDialog.side_b}</strong>
             </div>
             <form className="score-dialog-form" onSubmit={(event) => void saveMatchScore(event, scoreDialog.id, false)}>
-              <label>{scoreDialog.side_a} <input name="score_a" type="number" min="0" required placeholder="0" defaultValue={scoreDialog.score_a == null ? "" : scoreDialog.score_a} aria-label="Poäng A" /></label>
-              <label>{scoreDialog.side_b} <input name="score_b" type="number" min="0" required placeholder="0" defaultValue={scoreDialog.score_b == null ? "" : scoreDialog.score_b} aria-label="Poäng B" /></label>
+              <label title={scoreDialog.side_a}><span className="truncate-label">{scoreDialog.side_a}</span> <input name="score_a" type="number" min="0" required placeholder="0" defaultValue={scoreDialog.score_a == null ? "" : scoreDialog.score_a} aria-label="Poäng A" /></label>
+              <label title={scoreDialog.side_b}><span className="truncate-label">{scoreDialog.side_b}</span> <input name="score_b" type="number" min="0" required placeholder="0" defaultValue={scoreDialog.score_b == null ? "" : scoreDialog.score_b} aria-label="Poäng B" /></label>
+              <p className="form-hint" style={{ gridColumn: "1 / -1", margin: 0 }}>Spara livepoäng för att löpande uppdatera tabell och bracket. Avsluta match när resultatet är slutgiltigt.</p>
               <div className="modal-actions">
                 <button type="submit" disabled={scoreDialog.status === "completed"}>Spara livepoäng</button>
                 <button type="button" className="button danger" disabled={scoreDialog.status === "completed"} onClick={(event) => void saveMatchScore(event, scoreDialog.id, true)}>Avsluta match</button>

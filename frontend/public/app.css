@@ -159,19 +159,24 @@ p {
 }
 
 h1 {
-  margin-bottom: 4px;
-  font-size: 30px;
+  margin-bottom: 6px;
+  font-size: 32px;
   line-height: 1.15;
+  letter-spacing: -0.02em;
 }
 
 h2 {
-  margin-bottom: 12px;
-  font-size: 17px;
+  margin-bottom: 10px;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
 h3 {
   margin-bottom: 8px;
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
 }
 
 p {
@@ -1353,6 +1358,13 @@ button.filter-chip:focus-visible {
   word-break: break-word;
 }
 
+.truncate-label {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .modal-actions {
   grid-column: 1 / -1;
   display: flex;
@@ -2166,21 +2178,21 @@ body.tv {
   display: -webkit-box;
   max-width: 100%;
   overflow: hidden;
-  font-size: 54px;
-  line-height: 1.02;
+  font-size: 42px;
+  line-height: 1.05;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
 }
 
 .feature-match span {
   display: grid;
-  width: 92px;
-  height: 92px;
+  width: 110px;
+  height: 110px;
   place-items: center;
-  border: 2px solid rgba(148, 163, 184, 0.28);
+  border: 3px solid #44df8e;
   border-radius: 50%;
-  color: #cbd5e1;
-  font-size: 26px;
+  color: #44df8e;
+  font-size: 34px;
   font-weight: 900;
   text-transform: uppercase;
 }
