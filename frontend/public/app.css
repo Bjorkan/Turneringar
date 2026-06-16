@@ -105,6 +105,29 @@ button:hover,
   border-color: var(--line-strong);
 }
 
+.button.secondary {
+  background: white;
+  color: var(--blue);
+  border-color: var(--blue);
+  box-shadow: none;
+}
+
+.button.secondary:hover {
+  background: #eff6ff;
+}
+
+.button.danger {
+  background: #dc2626;
+  color: white;
+  border-color: #dc2626;
+  box-shadow: 0 8px 18px rgba(220, 38, 38, 0.22);
+}
+
+.button.danger:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
 .button.danger-outline {
   background: white;
   color: #dc2626;
@@ -115,6 +138,11 @@ button:hover,
 .button.danger-outline:hover {
   background: #fef2f2;
   border-color: #dc2626;
+}
+
+.danger-action {
+  color: #dc2626;
+  font-weight: 700;
 }
 
 .button.small {
@@ -1331,10 +1359,6 @@ button.filter-chip:focus-visible {
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
-}
-
-.danger-action {
-  color: var(--red);
 }
 
 .moderator-page {

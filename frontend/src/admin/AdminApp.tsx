@@ -867,7 +867,7 @@ function TournamentView({
         </div>
         <div className="actions">
           <a className="button subtle" href="#inställningar">Hantera turnering</a>
-          <a className="button primary" href="/admin/tv" onClick={(event) => { event.preventDefault(); onNavigate("/admin/tv"); }}>Hantera Live TV</a>
+          <a className="button secondary" href="/admin/tv" onClick={(event) => { event.preventDefault(); onNavigate("/admin/tv"); }}>Hantera Live TV</a>
         </div>
       </section>
 
@@ -921,7 +921,7 @@ function TournamentView({
               <section className="panel" id="slutspel">
                 <div className="panel-head">
                   <div><h2>Slutspel - översikt</h2><p>{knockoutRounds.length ? `${knockoutRounds.length} rundor` : "Inget slutspel ännu"}</p></div>
-                  {showSection("slutspel") ? <button className="button subtle" type="button" onClick={() => void regenerateStructure()}>Generera</button> : null}
+                  {showSection("slutspel") ? <button className="button danger-outline" type="button" onClick={() => void regenerateStructure()}>Generera</button> : null}
                 </div>
                 {!knockoutRounds.length ? <p className="empty">Generera slutspel för att se slutspelsträd.</p> : null}
                 {knockoutRounds.length ? (
@@ -973,8 +973,8 @@ function TournamentView({
               {showSection("slutspel") ? (
                 <section className="panel quick-panel">
                   <h2>Slutspelsåtgärder</h2>
-                  <button className="button ghost" type="button" onClick={() => void regenerateStructure()}>Bygg om bracket</button>
-                  <button className="button ghost" type="button" onClick={() => void postAction(`/api/tournaments/${id}/schedule`, "Schema uppdaterat.")}>Schemalägg slutspel</button>
+                  <button className="button danger-outline" type="button" onClick={() => void regenerateStructure()}>Bygg om bracket</button>
+                  <button className="button danger-outline" type="button" onClick={() => void postAction(`/api/tournaments/${id}/schedule`, "Schema uppdaterat.")}>Schemalägg slutspel</button>
                 </section>
               ) : null}
             </section>
@@ -1089,8 +1089,8 @@ function TournamentView({
                 </section>
                 <section className="panel quick-panel">
                   <h2>Schemaåtgärder</h2>
-                  <button className="button ghost" type="button" onClick={() => void regenerateStructure()}>Generera gruppspel och slutspel</button>
-                  <button className="button ghost" type="button" onClick={() => void postAction(`/api/tournaments/${id}/schedule`, "Schema uppdaterat.")}>Autoschemalägg matcher</button>
+                  <button className="button danger-outline" type="button" onClick={() => void regenerateStructure()}>Generera gruppspel och slutspel</button>
+                  <button className="button danger-outline" type="button" onClick={() => void postAction(`/api/tournaments/${id}/schedule`, "Schema uppdaterat.")}>Autoschemalägg matcher</button>
                 </section>
               </aside>
             </section>
@@ -1172,8 +1172,8 @@ function TournamentView({
               <aside className="side-stack">
                 <section className="panel quick-panel">
                   <h2>Turneringsåtgärder</h2>
-                  <button className="button ghost" type="button" onClick={() => void regenerateStructure()}>Generera gruppspel och slutspel</button>
-                  <button className="button ghost" type="button" onClick={() => void postAction(`/api/tournaments/${id}/schedule`, "Schema uppdaterat.")}>Autoschemalägg matcher</button>
+                  <button className="button danger-outline" type="button" onClick={() => void regenerateStructure()}>Generera gruppspel och slutspel</button>
+                  <button className="button danger-outline" type="button" onClick={() => void postAction(`/api/tournaments/${id}/schedule`, "Schema uppdaterat.")}>Autoschemalägg matcher</button>
                   <a className="button ghost" href="#moderatorer">Skapa moderatorlänk</a>
                 </section>
                 <section className="panel">
@@ -1286,7 +1286,7 @@ function TournamentView({
               <label>{scoreDialog.side_b} <input name="score_b" type="number" min="0" required placeholder="0" defaultValue={scoreDialog.score_b == null ? "" : scoreDialog.score_b} aria-label="Poäng B" /></label>
               <div className="modal-actions">
                 <button type="submit" disabled={scoreDialog.status === "completed"}>Spara livepoäng</button>
-                <button type="button" className="button primary" disabled={scoreDialog.status === "completed"} onClick={(event) => void saveMatchScore(event, scoreDialog.id, true)}>Avsluta match</button>
+                <button type="button" className="button danger" disabled={scoreDialog.status === "completed"} onClick={(event) => void saveMatchScore(event, scoreDialog.id, true)}>Avsluta match</button>
                 <button type="button" className="button subtle" onClick={() => setScoreDialog(null)}>Avbryt</button>
               </div>
             </form>
@@ -1462,7 +1462,7 @@ function ModeratorView({
                       <label>{match.side_b} <input name="score_b" type="number" min="0" required placeholder="0" defaultValue={match.score_b == null ? "" : match.score_b} aria-label="Poäng B" /></label>
                       <div className="modal-actions">
                         <button type="submit">Spara livepoäng</button>
-                        <button type="button" className="button subtle danger-action" onClick={(event) => void saveScore(event, match.id, true)}>Avsluta match</button>
+                        <button type="button" className="button danger-outline" onClick={(event) => void saveScore(event, match.id, true)}>Avsluta match</button>
                       </div>
                     </form>
                   </article>
