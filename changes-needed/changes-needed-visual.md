@@ -123,6 +123,9 @@ Kod:
 
 Standings-tabeller behöver samma robusta namnbehandling som deltagarlistan.
 
+Status: Löst
+Jag gav standings-tabellen `table-layout: fixed` så kolumnbredderna styrs av tabellen i stället för innehållet. Namnkolumnen (nth-child(2)) fick `overflow-wrap: anywhere` och `word-break: break-word` så långa lagnamn bryts i stället för att trycka ut cellen och sidan. Alla numeriska kolumner fick 32 px bredd med centrerad text, vilket ger tabellen en förutsägbar layout oavsett namnens längd. Regressionstestet `frontend/tests/admin-flow.spec.ts::slutspelstabellen bryter långa lagnamn i standings` skapar en turnering med ett extremt långt lagnamn på 390 px och verifierar att tabellen stannar inom viewporten.
+
 ## 7. Schemabrädan låter resursnamn och matchnamn rinna mellan kolumner
 
 Skärmdumpar:

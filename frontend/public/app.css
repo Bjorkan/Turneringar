@@ -1525,6 +1525,28 @@ label {
   font-size: 16px;
 }
 
+.standings-grid .admin-table {
+  table-layout: fixed;
+}
+
+.standings-grid .admin-table th:nth-child(2),
+.standings-grid .admin-table td:nth-child(2) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.standings-grid .admin-table th:nth-child(1),
+.standings-grid .admin-table td:nth-child(1) {
+  width: 32px;
+}
+
+.standings-grid .admin-table th:nth-child(n+3),
+.standings-grid .admin-table td:nth-child(n+3) {
+  width: 32px;
+  text-align: center;
+}
+
 .bracket-preview {
   display: grid;
   grid-auto-flow: column;
