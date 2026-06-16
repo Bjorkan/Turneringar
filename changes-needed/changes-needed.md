@@ -168,9 +168,17 @@ Jag ersatte rå PIN-cookies med HMAC-signerade sessionsvärden i `backend/turner
 
 33. Responsivt meny-state lyssnar inte på resize. `matchMedia("(max-width: 900px)")` används bara initialt; om fönstret ändrar storlek stannar layouten i gammalt compact-läge. Se `frontend/src/admin/AdminApp.tsx:183`.
 
+Status: Löst
+Jag lade till en `useEffect` med `MediaQueryList.addEventListener("change")` som uppdaterar compact-state när fönstret ändras över 900 px-gränsen. Return-funktionen rensar eventlyssnaren så inga minnesläckor uppstår.
+
 34. `document.body.className = ...` skriver över alla andra body-klasser. Det råkar fungera nu, men är skört om framtida kod eller integrationer lägger till klass på body. Se `frontend/src/admin/AdminApp.tsx:1401-1408`.
 
+Status: Löst
+Jag bytte `document.body.className = "..."` till `document.body.classList.remove(...)` följt av `classList.add(...)`. Det bevarar eventuella andra body-klasser som framtida kod eller tillägg kan sätta, i stället för att skriva över allt.
+
 35. Sidomenyn använder textglyphs (`T`, `TV`, `Ö`, `MO`) i stället för riktiga ikoner/tooltips. Det blir särskilt dåligt i kollapsat läge och bryter designkravet om symboler/ikoner för verktyg. Se `frontend/src/admin/AdminApp.tsx:31-41`, `frontend/src/admin/AdminApp.tsx:217-218`.
+
+Status: Redan löst i commit 555ab54 "Integrera MDI-ikoner"
 
 36. Playwright-testerna täcker inte mobil layout, TV-overflow, public payload-säkerhet, felinmatning eller korsade resurser. De två webbläsartesterna är fina smoke tests, men de missar nästan allt ovan. Se `frontend/tests/admin-flow.spec.ts`.
 
@@ -181,6 +189,9 @@ Jag ersatte rå PIN-cookies med HMAC-signerade sessionsvärden i `backend/turner
 ## Low / Städ
 
 39. CSS innehåller döda TV-regler för `.tv-rules`, `.tv-notices`, `.arena-guide`, `.arena-map` osv. Det är kvarlämnat från funktioner som enligt kraven inte ska visas i publik-TV. Ta bort eller håll det bakom riktig feature. Se `frontend/public/app.css:1911-1955`, `frontend/public/app.css:2035-2055`, `frontend/public/app.css:2370-2376`.
+
+Status: Löst
+Jag tog bort alla oanvända CSS-regler för `.arena-guide`, `.arena-legend`, `.arena-color`, `.arena-map`, `.arena-zone`, `.c1`, `.tv-rules` och `.tv-notices`. Även referenserna i mobilmediaqueryn städades bort. Detta minskar CSS-storleken och förhindrar förvirring om vad som faktiskt används i publik-TV.
 
 40. Root-kommandot `python -m pytest -q` fungerar inte i nuvarande shell utan venv, trots att README visar det som testkommando efter venv-setup. Dokumentera tydligare att `.venv` måste vara aktiv eller använd ett make/script som väljer rätt Python.
 

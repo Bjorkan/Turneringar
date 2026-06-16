@@ -205,6 +205,12 @@ function AdminShell({
   onClear: () => void;
 }) {
   const [compact, setCompact] = useState(() => window.matchMedia("(max-width: 900px)").matches);
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 900px)");
+    const handler = (event: MediaQueryListEvent) => setCompact(event.matches);
+    mediaQuery.addEventListener("change", handler);
+    return () => mediaQuery.removeEventListener("change", handler);
+  }, []);
   const visibleNavItems = tournamentId ? navItems : navItems.filter((item) => !item.tournamentOnly);
 
   const hrefFor = (item: NavItem) => {
@@ -1510,12 +1516,13 @@ export function AdminApp() {
   }, [refreshSession]);
 
   useEffect(() => {
+    document.body.classList.remove("is-authenticated", "is-moderator", "is-guest");
     if (session?.is_admin) {
-      document.body.className = "is-authenticated";
+      document.body.classList.add("is-authenticated");
     } else if (route.startsWith("/m/")) {
-      document.body.className = "is-moderator";
+      document.body.classList.add("is-moderator");
     } else {
-      document.body.className = "is-guest";
+      document.body.classList.add("is-guest");
     }
   }, [route, session]);
 
