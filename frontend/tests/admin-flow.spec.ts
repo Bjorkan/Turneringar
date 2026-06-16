@@ -387,6 +387,56 @@ test("deltagarlistan visar ellipsis och titel för långa namn", async ({ page }
   expect(metrics?.whiteSpace).toBe("nowrap");
 });
 
+test("deltagardetaljkortet bryter långa namn inom kortet", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await loginAsAdmin(page);
+
+  const tournamentName = `Participant Detail ${Date.now()}`;
+  let response = await page.request.post("/api/tournaments", {
+    data: {
+      name: tournamentName,
+      starts_at: "2026-12-14T10:00",
+      group_count: 2,
+      qualifiers_per_group: 1,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+  const tournament = await response.json() as { id: number };
+
+  const participantName = `DetaljkortetsObrutnaDeltagarnamnSomMåsteBrytasInneIKortet${Date.now()}AlphaBetaGammaDelta`;
+  response = await page.request.post(`/api/tournaments/${tournament.id}/participants`, {
+    data: { name: participantName, kind: "team", seed: 1 },
+  });
+  expect(response.ok()).toBeTruthy();
+
+  await page.goto(`/tournaments/${tournament.id}#deltagare`);
+  await expect(page.getByRole("heading", { name: tournamentName })).toBeVisible();
+  const heading = page.locator(".detail-hero h2").first();
+  await expect(heading).toHaveAttribute("title", participantName);
+
+  const metrics = await page.locator(".detail-panel").evaluate((panel) => {
+    const headingElement = panel.querySelector<HTMLElement>(".detail-hero h2");
+    if (!headingElement) return null;
+    const panelBox = panel.getBoundingClientRect();
+    const headingBox = headingElement.getBoundingClientRect();
+    const style = getComputedStyle(headingElement);
+
+    return {
+      documentWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
+      headingInsidePanel: headingBox.right <= panelBox.right + 1,
+      headingScrollFits: headingElement.scrollWidth <= headingElement.clientWidth + 1,
+      overflowWrap: style.overflowWrap,
+      viewportWidth: window.innerWidth,
+    };
+  });
+
+  expect(metrics).not.toBeNull();
+  expect(metrics?.documentWidth).toBeLessThanOrEqual((metrics?.viewportWidth ?? 0) + 1);
+  expect(metrics?.headingInsidePanel).toBeTruthy();
+  expect(metrics?.headingScrollFits).toBeTruthy();
+  expect(metrics?.overflowWrap).toBe("anywhere");
+});
+
 test("Live TV rymmer långa lagnamn på 1920-skärm", async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await loginAsAdmin(page);

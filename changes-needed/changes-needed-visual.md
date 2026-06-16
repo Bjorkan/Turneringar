@@ -85,6 +85,9 @@ Kod:
 
 Det här är ett rent kortlayoutfel. Flexbarnet med rubriken måste få krympa och bryta text.
 
+Status: Löst
+Jag gjorde `.detail-hero` till en säkrare flexrad genom att ge både raden och textblocket `min-width: 0`. Symbolen i kortet får nu fast flexbredd, så den inte konkurrerar med namntexten när kortet blir smalt. Deltagarnamnet i detaljkortets `h2` bryter långa obrutna tokens med `overflow-wrap: anywhere` och har `title` med hela namnet. Regressionstestet `frontend/tests/admin-flow.spec.ts::deltagardetaljkortet bryter långa namn inom kortet` skapar ett långt deltagarnamn på 320 px och verifierar att rubriken stannar i kortet utan dokumentoverflow.
+
 ## 5. Kvalificerade-listan i slutspel läcker långa namn utanför panelen
 
 Skärmdumpar:

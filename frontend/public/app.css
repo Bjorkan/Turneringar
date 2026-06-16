@@ -948,12 +948,22 @@ button.filter-chip:focus-visible {
   display: flex;
   align-items: center;
   gap: 14px;
+  min-width: 0;
   margin-bottom: 16px;
+}
+
+.detail-hero .card-symbol {
+  flex: 0 0 52px;
+}
+
+.detail-hero > div {
+  min-width: 0;
 }
 
 .detail-hero h2,
 .detail-hero p {
   margin-bottom: 0;
+  overflow-wrap: anywhere;
 }
 
 .detail-list {

@@ -993,7 +993,7 @@ function TournamentView({
                 <section className="panel detail-panel">
                   {selectedParticipant ? (
                     <>
-                      <div className="detail-hero"><span className="card-symbol tone-1">{initials(selectedParticipant.name)}</span><div><h2>{selectedParticipant.name}</h2><p>{participantKindText(selectedParticipant.kind)}</p></div></div>
+                      <div className="detail-hero"><span className="card-symbol tone-1">{initials(selectedParticipant.name)}</span><div><h2 title={selectedParticipant.name}>{selectedParticipant.name}</h2><p>{participantKindText(selectedParticipant.kind)}</p></div></div>
                       <dl className="detail-list">
                         <div><dt>Seed</dt><dd>{selectedParticipant.seed || "-"}</dd></div>
                         <div><dt>Grupp</dt><dd>{groupNameForParticipant(selectedParticipant.id)}</dd></div>
