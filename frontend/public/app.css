@@ -1894,12 +1894,14 @@ body.tv {
   margin-bottom: 0;
   color: #f8fbff;
   font-size: 46px;
+  overflow-wrap: anywhere;
 }
 
 .tv-waiting-card p {
   margin-bottom: 0;
   color: #b6c3d7;
   font-size: 22px;
+  overflow-wrap: anywhere;
 }
 
 .tv-pulse {
@@ -2640,5 +2642,17 @@ body.tv {
 
   .tv-info-card strong {
     font-size: 30px;
+  }
+
+  .tv-waiting-card {
+    padding: 24px 16px;
+  }
+
+  .tv-waiting-card h1 {
+    font-size: 28px;
+  }
+
+  .tv-waiting-card p {
+    font-size: 16px;
   }
 }

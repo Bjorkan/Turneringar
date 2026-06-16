@@ -1213,6 +1213,29 @@ test("schemavyn visar när resurs- och sidolistor fortsätter", async ({ page })
   await expect(unplacedPanel).toContainText(/match till saknar plats/);
 });
 
+test("TV-vänteläget ryms på mobil och bryter långa etiketter", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await loginAsAdmin(page);
+
+  const tvCode = `TW${Date.now().toString().slice(-8)}`;
+  const longLabel = "En extremt lång obruten TV-skärmetikett för att testa att vänteläget hanterar detta";
+
+  let response = await page.request.post("/api/tv-links", {
+    data: { label: longLabel, code: tvCode },
+  });
+  expect(response.ok()).toBeTruthy();
+
+  await page.goto(`/tv/${tvCode}`);
+  await expect(page.locator(".tv-waiting-card")).toBeVisible();
+  await expect(page.locator(".tv-waiting-card")).toContainText(longLabel);
+
+  const metrics = await page.evaluate(() => ({
+    viewportWidth: window.innerWidth,
+    documentWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
+  }));
+  expect(metrics.documentWidth).toBeLessThanOrEqual(metrics.viewportWidth + 1);
+});
+
 test("delningskortet visar kopiera-länk i stället för falsk QR-kod", async ({ page }) => {
   const { tournamentName } = await prepareScheduledTournament(page);
 
