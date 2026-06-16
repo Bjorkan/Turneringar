@@ -1213,6 +1213,68 @@ test("schemavyn visar när resurs- och sidolistor fortsätter", async ({ page })
   await expect(unplacedPanel).toContainText(/match till saknar plats/);
 });
 
+test("TV Härnäst-panelen bryter inte tabellayouten med långa lagnamn", async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await loginAsAdmin(page);
+
+  const tournamentName = `TV UpNext ${Date.now()}`;
+  let response = await page.request.post("/api/tournaments", {
+    data: {
+      name: tournamentName,
+      starts_at: "2026-06-14T10:00",
+      group_count: 2,
+      qualifiers_per_group: 1,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+  const tournament = await response.json() as { id: number };
+
+  const longName = "ExtremtLångtObrutetLagnamnFörHärnästPanelenSomMåsteFåEllipsis";
+  for (let i = 0; i < 4; i++) {
+    response = await page.request.post(`/api/tournaments/${tournament.id}/participants`, {
+      data: { name: `${longName}${i}`, kind: "team", seed: i + 1 },
+    });
+    expect(response.ok()).toBeTruthy();
+  }
+
+  response = await page.request.post(`/api/tournaments/${tournament.id}/resources`, {
+    data: { name: "Plan 1", kind: "court" },
+  });
+  expect(response.ok()).toBeTruthy();
+  const resource = await response.json() as { id: number };
+
+  response = await page.request.post(`/api/tournaments/${tournament.id}/generate`, { data: {} });
+  expect(response.ok()).toBeTruthy();
+  response = await page.request.post(`/api/tournaments/${tournament.id}/schedule`, { data: {} });
+  expect(response.ok()).toBeTruthy();
+
+  const tvCode = `UN${Date.now().toString().slice(-8)}`;
+  response = await page.request.post("/api/tv-links", { data: { label: "UpNext TV", code: tvCode } });
+  expect(response.ok()).toBeTruthy();
+  const tvLink = (await response.json() as { tv_link: { id: number } }).tv_link;
+  response = await page.request.patch(`/api/tv-links/${tvLink.id}`, {
+    data: { label: "UpNext TV", tournament_id: tournament.id, resource_id: resource.id },
+  });
+  expect(response.ok()).toBeTruthy();
+
+  await page.goto(`/tv/${tvCode}`);
+  await expect(page.getByText(tournamentName)).toBeVisible();
+
+  const spanStyles = await page.evaluate(() => {
+    const spans = document.querySelectorAll<HTMLElement>(".tv-up-next .tv-row span");
+    if (!spans.length) return null;
+    const style = window.getComputedStyle(spans[0]);
+    return {
+      whiteSpace: style.whiteSpace,
+      textOverflow: style.textOverflow,
+      overflow: style.overflow,
+    };
+  });
+  expect(spanStyles).not.toBeNull();
+  expect(spanStyles!.whiteSpace).toBe("nowrap");
+  expect(spanStyles!.textOverflow).toBe("ellipsis");
+});
+
 test("TV-schemalayouten klipper inte nederkant med långa lagnamn", async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await loginAsAdmin(page);

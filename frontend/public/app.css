@@ -2147,6 +2147,12 @@ body.tv {
   font-size: 20px;
 }
 
+.tv-up-next .tv-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .tv-table {
   display: grid;
   gap: 0;
