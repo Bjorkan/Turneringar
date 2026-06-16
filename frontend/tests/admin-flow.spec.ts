@@ -50,14 +50,15 @@ async function addResource(page: Page, name: string) {
   await expect(page.locator("#schema")).toContainText(name);
 }
 
-async function expectNoHorizontalOverflow(page: Page) {
-  const metrics = await page.evaluate(() => {
-    const title = document.querySelector<HTMLElement>(".tournament-title");
-    const heading = document.querySelector<HTMLElement>(".tournament-title h1");
+async function expectNoHorizontalOverflow(page: Page, selector = ".tournament-title") {
+  const metrics = await page.evaluate((rootSelector) => {
+    const title = document.querySelector<HTMLElement>(rootSelector);
+    const heading = title?.querySelector<HTMLElement>("h1");
     const titleBox = title?.getBoundingClientRect();
     const headingBox = heading?.getBoundingClientRect();
 
     return {
+      found: Boolean(title && heading),
       viewportWidth: window.innerWidth,
       documentWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
       titleRight: titleBox ? Math.ceil(titleBox.right) : 0,
@@ -65,8 +66,9 @@ async function expectNoHorizontalOverflow(page: Page) {
       headingScrollWidth: heading?.scrollWidth ?? 0,
       headingClientWidth: heading?.clientWidth ?? 0,
     };
-  });
+  }, selector);
 
+  expect(metrics.found).toBeTruthy();
   expect(metrics.documentWidth).toBeLessThanOrEqual(metrics.viewportWidth + 1);
   expect(metrics.titleRight).toBeLessThanOrEqual(metrics.viewportWidth + 1);
   expect(metrics.headingRight).toBeLessThanOrEqual(metrics.viewportWidth + 1);
@@ -298,6 +300,40 @@ test("lång turneringsrubrik spräcker inte adminlayouten", async ({ browser }) 
 
     await context.close();
   }
+});
+
+test("moderatorns sidhuvud bryter långa turneringsnamn före och efter inloggning", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await loginAsAdmin(page);
+
+  const tournamentName = `ModeratorTurneringMedExtremtLångtObrutetNamn${Date.now()}AlphaBetaGammaDeltaEpsilonZetaEtaTheta`;
+  let response = await page.request.post("/api/tournaments", {
+    data: {
+      name: tournamentName,
+      starts_at: "2026-12-14T10:00",
+      group_count: 2,
+      qualifiers_per_group: 1,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+  const tournament = await response.json() as { id: number };
+
+  response = await page.request.post(`/api/tournaments/${tournament.id}/moderators`, {
+    data: { label: "Domare med mobilvy" },
+  });
+  expect(response.ok()).toBeTruthy();
+  const moderator = (await response.json() as { moderator: { pin: string; token: string } }).moderator;
+
+  await page.goto(`/m/${moderator.token}`);
+  await expect(page.getByRole("heading", { name: "Domare med mobilvy" })).toBeVisible();
+  await expect(page.locator(".moderator-page .page-head")).toContainText(tournamentName);
+  await expectNoHorizontalOverflow(page, ".moderator-page .page-head");
+
+  await page.locator('input[name="pin"]').fill(moderator.pin);
+  await page.getByRole("button", { name: "Öppna" }).click();
+  await expect(page.locator(".moderator-side-card")).toContainText("Aktiv");
+  await expect(page.locator(".moderator-page .page-head")).toContainText(tournamentName);
+  await expectNoHorizontalOverflow(page, ".moderator-page .page-head");
 });
 
 test("Live TV rymmer långa lagnamn på 1920-skärm", async ({ page }) => {

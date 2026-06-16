@@ -48,6 +48,9 @@ Kod:
 
 Det här gör moderatorlänkar opålitliga på telefoner. Sidhuvudet måste bryta långa namn konsekvent.
 
+Status: Löst
+Jag lät moderatorvyn använda samma robusta `page-head`-regler som adminrubrikerna: flexbarnen får `min-width: 0` och rubrik/metadata bryter långa tokens med `overflow-wrap: anywhere`. Det gör att moderatorlabeln, det långa turneringsnamnet och resursraden stannar inom `.moderator-page` i mobilbredd både före och efter PIN-login. Jag gjorde overflow-testhjälparen i Playwright generell så den kan mäta valfritt sidhuvud i stället för bara turneringssidan. Regressionstestet `frontend/tests/admin-flow.spec.ts::moderatorns sidhuvud bryter långa turneringsnamn före och efter inloggning` skapar en moderatorlänk för en turnering med långt obrutet namn, öppnar den på 390 px, verifierar layouten före PIN och upprepar samma kontroll efter inloggning.
+
 ## 3. Deltagarlistan klipper namn utan någon visuell signal
 
 Skärmdump:
