@@ -1213,6 +1213,21 @@ test("schemavyn visar när resurs- och sidolistor fortsätter", async ({ page })
   await expect(unplacedPanel).toContainText(/match till saknar plats/);
 });
 
+test("tom-state-texter i admin är informativa med handlingsanvisning", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await loginAsAdmin(page);
+  await createTournament(page);
+
+  await page.locator(".tournament-tabs").getByRole("link", { name: "Moderatorer" }).click();
+  await expect(page.locator("#moderatorer")).toContainText("Skapa en länk så kan moderatorer rapportera poäng");
+
+  await page.goto("/admin/tv");
+  await expect(page.getByText("Skapa en länk ovan för att komma igång")).toBeVisible();
+
+  await page.locator(".tournament-tabs").getByRole("link", { name: "Inställningar" }).click();
+  await expect(page.locator(".share-card")).toContainText("Skapa en länk för att visa delning");
+});
+
 test("TV-slide-dots har title med slide-namn och topbar visar aktuell slide", async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await loginAsAdmin(page);

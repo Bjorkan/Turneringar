@@ -549,7 +549,7 @@ function LiveTvAdmin({ onNotice, onError }: { onNotice: NoticeHandler; onError: 
               <span className="count-pill">{tvLinks.length}</span>
             </div>
             {loading ? <p className="empty">Laddar Live TV-länkar...</p> : null}
-            {!loading && !tvLinks.length ? <p className="empty">Inga TV-länkar ännu.</p> : null}
+            {!loading && !tvLinks.length ? <p className="empty">Inga TV-länkar ännu. Skapa en länk ovan för att komma igång med publika skärmar.</p> : null}
             {!loading && tvLinks.length ? (
               <div className="tv-link-grid">
                 {tvLinks.map((link) => {
@@ -1178,7 +1178,7 @@ function TournamentView({
                 <table className="admin-table compact-table">
                   <thead><tr><th>Etikett</th><th>Resurs</th><th>PIN</th><th>Status</th><th>Länk</th></tr></thead>
                   <tbody>
-                    {!moderators.length ? <tr><td colSpan={5}>Inga moderatorer ännu.</td></tr> : null}
+                    {!moderators.length ? <tr><td colSpan={5}>Inga moderatorer ännu. Skapa en länk så kan moderatorer rapportera poäng från sina resurser.</td></tr> : null}
                     {moderators.map((moderator) => (
                       <tr key={moderator.id}>
                         <td><strong>{moderator.label}</strong></td>
@@ -1207,7 +1207,7 @@ function TournamentView({
                   <h2>Senaste aktivitet</h2>
                   <div className="activity-list">
                     <article><span className="activity-icon green" /><div><strong>{participants.length} deltagare registrerade</strong><small>Aktuell deltagarlista</small></div></article>
-                    {!events.length ? <p className="empty">Inga händelser ännu.</p> : null}
+{!events.length ? <p className="empty">Inga händelser ännu. Händelser visas när matcher spelas, scheman uppdateras eller deltagare läggs till.</p> : null}
                     {events.slice(0, 5).map((event) => <article key={event.id}><span className="activity-icon blue" /><div><strong>{eventText[event.kind] || event.kind}</strong><small>{formatTime(event.created_at)}</small></div></article>)}
                   </div>
                 </section>
