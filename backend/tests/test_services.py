@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import signal
 import sqlite3
 import tempfile
 import unittest
@@ -574,10 +575,14 @@ class DatabaseErrorHandlingTests(unittest.TestCase):
         try:
             db_path = Path(tmpdir.name) / "corrupt.sqlite3"
             db_path.write_bytes(b"Not a valid SQLite database at all\x00\x00\x00")
-            with self.assertRaises((sqlite3.DatabaseError, sqlite3.OperationalError)):
-                conn = connect(db_path)
-                conn.execute("SELECT COUNT(*) FROM sqlite_master")
-                conn.close()
+            signal.alarm(5)
+            try:
+                with self.assertRaises((sqlite3.DatabaseError, sqlite3.OperationalError)):
+                    conn = connect(db_path)
+                    conn.execute("SELECT COUNT(*) FROM sqlite_master")
+                    conn.close()
+            finally:
+                signal.alarm(0)
         finally:
             tmpdir.cleanup()
 
@@ -609,8 +614,12 @@ class DatabaseErrorHandlingTests(unittest.TestCase):
             db_path = Path(tmpdir.name) / "garbage.sqlite3"
             db_path.write_bytes(os.urandom(512))
 
-            with self.assertRaises((sqlite3.DatabaseError, sqlite3.OperationalError)):
-                initialize_database(db_path)
+            signal.alarm(5)
+            try:
+                with self.assertRaises((sqlite3.DatabaseError, sqlite3.OperationalError)):
+                    initialize_database(db_path)
+            finally:
+                signal.alarm(0)
         finally:
             tmpdir.cleanup()
 
