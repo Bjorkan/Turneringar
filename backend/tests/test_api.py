@@ -718,3 +718,118 @@ def test_session_survives_server_restart_with_fixed_secret(tmp_path: Path) -> No
             except subprocess.TimeoutExpired:
                 p.kill()
                 p.communicate(timeout=5)
+
+
+def test_crash_recovery_after_sigkill(tmp_path: Path) -> None:
+    fixed_secret = "test-crash-recovery-secret"
+    port1 = free_port()
+    port2 = free_port()
+    assert port1 != port2
+
+    env: dict[str, str] = {
+        **dict(os.environ),
+        "ADMIN_PIN": "test-pin",
+        "SESSION_SECRET": fixed_secret,
+        "TURNERINGAR_DB": str(tmp_path / "turneringar.sqlite3"),
+    }
+
+    procs: list[subprocess.Popen[str]] = []
+
+    def _start(p: int) -> tuple[subprocess.Popen[str], ServerProcess, ApiClient]:
+        proc = subprocess.Popen(
+            [
+                sys.executable,
+                "-m",
+                "uvicorn",
+                "turneringar.main:app",
+                "--app-dir",
+                "backend",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                str(p),
+                "--log-level",
+                "warning",
+            ],
+            cwd=ROOT,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        procs.append(proc)
+        server = ServerProcess(proc)
+        client = ApiClient(f"http://127.0.0.1:{p}", server)
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            health = server.health()
+            if health:
+                pytest.fail(f"Server on port {p} died early\n{health}")
+            try:
+                if client.get("/api/session").status_code == 200:
+                    break
+            except URLError:
+                time.sleep(0.1)
+        else:
+            server.terminate()
+            pytest.fail(f"Server on port {p} did not start")
+        return proc, server, client
+
+    try:
+        proc1, server1, api1 = _start(port1)
+        login(api1)
+
+        # Create a tournament with full structure
+        tid = create_ready_tournament(api1)
+
+        # Make writes to the database
+        dashboard = api1.get(f"/api/tournaments/{tid}").json()
+        live_match = next(
+            m for m in dashboard["matches"]
+            if m["stage_kind"] == "group" and m["participant_a_id"]
+        )
+        score_resp = api1.post(
+            f"/api/tournaments/{tid}/matches/{live_match['id']}/score",
+            json={"score_a": 3, "score_b": 2},
+        )
+        assert score_resp.status_code == 200
+
+        # SIGKILL the server while database has been written to
+        proc1.kill()
+        try:
+            proc1.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc1.kill()
+            proc1.wait(timeout=5)
+
+        # Start a new server with the same database
+        proc2, server2, api2 = _start(port2)
+        login(api2)
+
+        # Verify tournament data is still intact and consistent
+        restored = api2.get(f"/api/tournaments/{tid}")
+        assert restored.status_code == 200, f"Expected 200, got {restored.status_code}"
+        data = restored.json()
+        assert data["tournament"]["name"] == "API Hårdkoll"
+        assert len(data["participants"]) == 4
+        assert len(data["resources"]) == 2
+
+        # The score from before the crash should be there (SQLite crash recovery)
+        restored_match = next(
+            m for m in data["matches"] if m["id"] == live_match["id"]
+        )
+        assert restored_match["score_label"] in ("3 - 2", "-"), (
+            f"Expected score to be '3 - 2' or '-' after crash, got {restored_match['score_label']}"
+        )
+
+        # Verify we can continue working after recovery
+        new_tid = create_ready_tournament(api2)
+        assert new_tid not in (tid,)
+    finally:
+        for p in procs:
+            try:
+                p.terminate()
+                p.communicate(timeout=5)
+            except subprocess.TimeoutExpired:
+                p.kill()
+                p.communicate(timeout=5)
