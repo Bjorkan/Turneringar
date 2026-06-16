@@ -1213,6 +1213,67 @@ test("schemavyn visar när resurs- och sidolistor fortsätter", async ({ page })
   await expect(unplacedPanel).toContainText(/match till saknar plats/);
 });
 
+test("TV-schemalayouten klipper inte nederkant med långa lagnamn", async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await loginAsAdmin(page);
+
+  const tournamentName = `TV Schedule ${Date.now()}`;
+  let response = await page.request.post("/api/tournaments", {
+    data: {
+      name: tournamentName,
+      starts_at: "2026-06-14T10:00",
+      group_count: 2,
+      qualifiers_per_group: 1,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+  const tournament = await response.json() as { id: number };
+
+  const longName = "ExtremtLångtObrutetLagnamnFörSchemaSliden";
+  for (let i = 0; i < 4; i++) {
+    response = await page.request.post(`/api/tournaments/${tournament.id}/participants`, {
+      data: { name: `${longName}${i}`, kind: "team", seed: i + 1 },
+    });
+    expect(response.ok()).toBeTruthy();
+  }
+
+  response = await page.request.post(`/api/tournaments/${tournament.id}/resources`, {
+    data: { name: "Plan 1", kind: "court" },
+  });
+  expect(response.ok()).toBeTruthy();
+  const resource = await response.json() as { id: number };
+
+  response = await page.request.post(`/api/tournaments/${tournament.id}/generate`, { data: {} });
+  expect(response.ok()).toBeTruthy();
+  response = await page.request.post(`/api/tournaments/${tournament.id}/schedule`, { data: {} });
+  expect(response.ok()).toBeTruthy();
+
+  const tvCode = `SC${Date.now().toString().slice(-8)}`;
+  response = await page.request.post("/api/tv-links", { data: { label: "Schedule TV", code: tvCode } });
+  expect(response.ok()).toBeTruthy();
+  const tvLink = (await response.json() as { tv_link: { id: number } }).tv_link;
+  response = await page.request.patch(`/api/tv-links/${tvLink.id}`, {
+    data: { label: "Schedule TV", tournament_id: tournament.id, resource_id: resource.id },
+  });
+  expect(response.ok()).toBeTruthy();
+
+  await page.goto(`/tv/${tvCode}`);
+  await expect(page.getByText(tournamentName)).toBeVisible();
+
+  await expect(page.locator(".tv-slide:nth-child(3)")).toBeAttached();
+
+  const layoutCss = await page.evaluate(() => {
+    const deck = document.querySelector<HTMLElement>(".schedule-layout");
+    if (!deck) return null;
+    const style = window.getComputedStyle(deck);
+    return {
+      gridTemplateRows: style.gridTemplateRows,
+    };
+  });
+  expect(layoutCss).not.toBeNull();
+  expect(layoutCss!.gridTemplateRows).not.toContain("0.7fr");
+});
+
 test("TV-tabeller i slutspelsvyn bryter långa lagnamn i standings", async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await loginAsAdmin(page);
