@@ -716,13 +716,13 @@ kbd {
 }
 
 .status-badge.info {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: #bfdbfe;
+  color: #1e40af;
 }
 
 .status-badge.success {
-  background: #dff8eb;
-  color: #087443;
+  background: #bbf7d0;
+  color: #166534;
 }
 .status-badge.live::before {
   content: "";
@@ -734,18 +734,18 @@ kbd {
 }
 
 .status-badge.warning {
-  background: #fff1d6;
-  color: #9a5b00;
+  background: #fed7aa;
+  color: #9a3412;
 }
 
 .status-badge.done {
-  background: #edf0f5;
-  color: #48556a;
+  background: #d1d5db;
+  color: #374151;
 }
 
 .status-badge.neutral {
-  background: #eef2f8;
-  color: #52607a;
+  background: #d1d5db;
+  color: #374151;
 }
 
 @keyframes livePulse {

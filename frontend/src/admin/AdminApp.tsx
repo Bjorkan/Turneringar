@@ -560,7 +560,7 @@ function LiveTvAdmin({ onNotice, onError }: { onNotice: NoticeHandler; onError: 
           <section className="panel">
             <div className="panel-head">
               <div><h2>TV-länkar</h2><p>Uppdateringar slår igenom direkt på anslutna skärmar.</p></div>
-              <span className="count-pill">{tvLinks.length}</span>
+              <span className="count-pill" title={`${tvLinks.length} TV-länkar`}>{tvLinks.length}</span>
             </div>
             {loading ? <p className="empty">Laddar Live TV-länkar...</p> : null}
             {!loading && !tvLinks.length ? <p className="empty">Inga TV-länkar ännu. Skapa en länk ovan för att komma igång med publika skärmar.</p> : null}
@@ -937,7 +937,7 @@ function TournamentView({
               </section>
 
               <section className="panel standings-panel" id="tabeller">
-                <div className="panel-head"><h2>Tabeller</h2><span className="count-pill">{standings.length}</span></div>
+                <div className="panel-head"><h2>Tabeller</h2><span className="count-pill" title={`${standings.length} grupptabeller`}>{standings.length}</span></div>
                 {!standings.length ? <p className="empty">Generera gruppspel för att se tabeller.</p> : null}
                 {standings.length ? (
                   <div className="standings-grid">
@@ -960,7 +960,7 @@ function TournamentView({
 
               {showSection("slutspel") ? (
                 <section className="panel">
-                  <div className="panel-head"><h2>Kvalificerade till slutspel</h2><span className="count-pill">{qualifiedRows.length}</span></div>
+                  <div className="panel-head"><h2>Kvalificerade till slutspel</h2><span className="count-pill" title={`${qualifiedRows.length} deltagare`}>{qualifiedRows.length}</span></div>
                   <div className="mini-list qualified-list">
                     {!qualifiedRows.length ? <p className="empty">Spela klart gruppspelet eller generera grupper för att se kvalificerade lag.</p> : null}
                     {qualifiedRows.map((row) => (
@@ -985,7 +985,7 @@ function TournamentView({
               <section className="panel participant-list-panel">
                 <div className="panel-head">
                   <div><h2>Deltagare</h2><p>{participantBreakdown.teams} lag · {participantBreakdown.players} individuella</p></div>
-                  <span className="count-pill">{participants.length}</span>
+                  <span className="count-pill" title={`${participants.length} deltagare`}>{participants.length}</span>
                 </div>
                 <div className="filter-row">
                   <button type="button" className={`filter-chip ${participantFilter === "all" ? "active" : ""}`} aria-pressed={participantFilter === "all"} onClick={() => setParticipantFilter("all")}>Alla <strong>{participants.length}</strong></button>
@@ -1051,7 +1051,7 @@ function TournamentView({
           {showSection("schema") ? (
             <section className="section-grid schedule-page" id="schema">
               <section className="panel">
-                <div className="panel-head"><div><h2>Schema</h2><p>{resources.length} resurser · {statusCounts.unplaced} ej placerade matcher</p></div><span className="count-pill">{matches.length}</span></div>
+                <div className="panel-head"><div><h2>Schema</h2><p>{resources.length} resurser · {statusCounts.unplaced} ej placerade matcher</p></div><span className="count-pill" title={`${matches.length} matcher`}>{matches.length}</span></div>
                 <div className="schedule-board">
                   {resourcesWithMatches.map((resource) => (
                     <article key={resource.id} className="resource-column">
@@ -1080,7 +1080,7 @@ function TournamentView({
                   </form>
                 </section>
                 <section className="panel">
-                  <div className="panel-head"><h2>Ej placerade</h2><span className="count-pill">{statusCounts.unplaced}</span></div>
+                  <div className="panel-head"><h2>Ej placerade</h2><span className="count-pill" title={`${statusCounts.unplaced} ej placerade`}>{statusCounts.unplaced}</span></div>
                   <div className="mini-list">
                     {!unplacedMatches.length ? <p className="empty">Alla spelbara matcher har en plats.</p> : null}
                     {unplacedMatches.map((match) => <article key={match.id}><div><strong>{match.side_a} vs {match.side_b}</strong><small>{match.group_name || match.stage_name || match.name}</small></div></article>)}
@@ -1098,7 +1098,7 @@ function TournamentView({
 
           {showSection("matcher") || showSection("schema") ? (
             <section className="panel" id="alla-matcher">
-              <div className="panel-head"><h2>Alla matcher</h2><span className="count-pill">{matches.length}</span></div>
+              <div className="panel-head"><h2>Alla matcher</h2><span className="count-pill" title={`${matches.length} matcher`}>{matches.length}</span></div>
               <div className="filter-row match-status-row">
                 <button type="button" className={`filter-chip ${matchFilter === "all" ? "active" : ""}`} aria-pressed={matchFilter === "all"} onClick={() => setMatchFilter("all")}>Alla <strong>{statusCounts.all}</strong></button>
                 <button type="button" className={`filter-chip ${matchFilter === "live" ? "active" : ""}`} aria-pressed={matchFilter === "live"} onClick={() => setMatchFilter("live")}>Pågår <strong>{statusCounts.live}</strong></button>
