@@ -2253,6 +2253,7 @@ body.tv {
 
 .tv-standings table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   color: #edf4ff;
 }
@@ -2262,6 +2263,31 @@ body.tv {
   border-bottom: 1px solid rgba(148, 163, 184, 0.18);
   padding: 12px 10px;
   text-align: left;
+}
+
+.tv-standings th:first-child,
+.tv-standings td:first-child {
+  width: 28px;
+  text-align: center;
+}
+
+.tv-standings th:nth-child(2),
+.tv-standings td:nth-child(2) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.tv-standings th:nth-child(n+3),
+.tv-standings td:nth-child(n+3) {
+  width: 28px;
+  text-align: center;
+}
+
+.tv-standings th:last-child,
+.tv-standings td:last-child {
+  width: 44px;
+  text-align: center;
 }
 
 .tv-standings th {
