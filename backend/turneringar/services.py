@@ -613,6 +613,7 @@ def update_match_result(
     match_id: int,
     score_a: int,
     score_b: int,
+    actor: str = "admin",
 ) -> None:
     match = store.get_match(conn, match_id)
     if not match or match["tournament_id"] != tournament_id:
@@ -649,7 +650,13 @@ def update_match_result(
             conn,
             tournament_id,
             "result_updated",
-            {"tournament_id": tournament_id, "match_id": match_id},
+            {
+                "tournament_id": tournament_id,
+                "match_id": match_id,
+                "score_a": score_a,
+                "score_b": score_b,
+                "actor": actor,
+            },
         )
 
 
@@ -659,6 +666,7 @@ def update_match_score(
     match_id: int,
     score_a: int,
     score_b: int,
+    actor: str = "admin",
 ) -> None:
     match = store.get_match(conn, match_id)
     if not match or match["tournament_id"] != tournament_id:
@@ -685,7 +693,13 @@ def update_match_score(
             conn,
             tournament_id,
             "score_updated",
-            {"tournament_id": tournament_id, "match_id": match_id},
+            {
+                "tournament_id": tournament_id,
+                "match_id": match_id,
+                "score_a": score_a,
+                "score_b": score_b,
+                "actor": actor,
+            },
         )
 
 

@@ -96,6 +96,7 @@ export type EventLog = {
   id: number;
   kind: string;
   created_at: string;
+  payload?: Record<string, unknown>;
 };
 
 export type DashboardData = {

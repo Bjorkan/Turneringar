@@ -1240,7 +1240,9 @@ function TournamentView({
 {!events.length ? <p className="empty">Inga händelser ännu. Händelser visas när matcher spelas, scheman uppdateras eller deltagare läggs till.</p> : null}
                     {events.slice(0, 5).map((event) => {
                       const iconType = event.kind.startsWith("score") || event.kind.startsWith("result") ? "score" : event.kind.startsWith("schedule") ? "schedule" : event.kind.startsWith("structure") || event.kind.startsWith("bracket") ? "structure" : event.kind.startsWith("settings") ? "settings" : "participants";
-                      return <article key={event.id}><span className={`activity-icon blue ${iconType}`} /><div><strong>{eventText[event.kind] || event.kind}</strong><small>{formatTime(event.created_at)}</small></div></article>;
+                      const actor = event.payload?.actor ? String(event.payload.actor) : "";
+                      const actorLabel = actor.startsWith("moderator:") ? actor.slice(10) : actor === "admin" ? "Admin" : "";
+                      return <article key={event.id}><span className={`activity-icon blue ${iconType}`} /><div><strong>{eventText[event.kind] || event.kind}</strong><small>{formatTime(event.created_at)}{actorLabel ? ` · ${actorLabel}` : ""}</small></div></article>;
                     })}
                   </div>
                 </section>

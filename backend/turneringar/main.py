@@ -580,6 +580,7 @@ async def admin_result(request: Request, tournament_id: int, match_id: int) -> d
                 match_id,
                 parse_score(payload, "score_a", "Poäng A"),
                 parse_score(payload, "score_b", "Poäng B"),
+                actor="admin",
             )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -599,6 +600,7 @@ async def admin_score(request: Request, tournament_id: int, match_id: int) -> di
                 match_id,
                 parse_score(payload, "score_a", "Poäng A"),
                 parse_score(payload, "score_b", "Poäng B"),
+                actor="admin",
             )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -693,6 +695,7 @@ async def moderator_result(request: Request, token: str, match_id: int) -> dict[
                 match_id,
                 parse_score(payload, "score_a", "Poäng A"),
                 parse_score(payload, "score_b", "Poäng B"),
+                actor=f"moderator:{moderator['label']}",
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -716,6 +719,7 @@ async def moderator_score(request: Request, token: str, match_id: int) -> dict[s
                 match_id,
                 parse_score(payload, "score_a", "Poäng A"),
                 parse_score(payload, "score_b", "Poäng B"),
+                actor=f"moderator:{moderator['label']}",
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc

@@ -551,6 +551,25 @@ def test_static_frontends_are_served(client: ApiClient) -> None:
     assert client.get("/assets/tv.js").status_code == 200
 
 
+def test_result_updates_include_actor_in_event_log(client: ApiClient) -> None:
+    login(client)
+    tournament_id = create_ready_tournament(client)
+    response = client.get(f"/api/tournaments/{tournament_id}")
+    assert response.status_code == 200
+    matches = response.json()["matches"]
+    match_id = matches[0]["id"]
+    client.post(
+        f"/api/tournaments/{tournament_id}/matches/{match_id}/score",
+        json={"score_a": 2, "score_b": 1},
+    )
+    resp = client.get(f"/api/tournaments/{tournament_id}")
+    assert resp.status_code == 200
+    events = resp.json()["events"]
+    score_events = [e for e in events if e["kind"] == "score_updated"]
+    assert score_events
+    assert score_events[-1]["payload"]["actor"] == "admin"
+
+
 def test_rate_limit_blocks_after_many_failed_logins(client: ApiClient) -> None:
     # Use a unique PIN to guarantee failures for this test
     wrong_pin = "wrong-pin-" + str(os.getpid())
