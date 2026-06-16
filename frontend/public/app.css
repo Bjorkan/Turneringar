@@ -1340,6 +1340,22 @@ button.filter-chip:focus-visible {
   min-width: 0;
 }
 
+.moderator-match-title strong {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.moderator-match-card header div:first-child strong {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.moderator-score-card label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .moderator-score-card {
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
   align-items: end;

@@ -298,6 +298,9 @@ Kod:
 
 Sidopaneler är extra känsliga. Här måste etiketter trunkeras eller brytas inom panelen.
 
+Status: Löst redan av problem 5
+Samma `.mini-list article > div` och `strong`-regler som lades till för kvalificerade-listan (problem 5) gäller även TV-adminens "Senaste länkar"-artiklar. Långa TV-etiketter bryts nu inne i sidopanelen i stället för att läcka ut.
+
 ## 16. QR-rutan är en falsk QR-kod
 
 Skärmdump:
@@ -328,6 +331,9 @@ Kod:
 - `frontend/public/app.css:2260-2266` gör mobilgrid till en kolumn, men texten får ändå växa utanför.
 
 Moderatorvyn måste vara den mest tåliga vyn, eftersom den används snabbt på plats. Just nu är den visuellt trasig med realistiskt långa resursnamn.
+
+Status: Löst
+Jag gav `.moderator-match-title strong`, `.moderator-match-card header div:first-child strong` och `.moderator-score-card label` `overflow-wrap: anywhere` och `word-break: break-word`. Långa lagnamn i matchtiteln och som score-inputlabels bryts nu inne i kortet i stället för att rinna utanför. Den befintliga gridlayouten i header och score-kort med `minmax(0, 1fr)` gör att innehållet kan krympa. Regressionstestet `frontend/tests/admin-flow.spec.ts::moderatorns matchkort bryter långa namn` navigerar till moderatorvyn med långa namn på 390 px och verifierar att dokumentet stannar inom viewporten.
 
 ## 18. TV-vänteläget är bredare än mobilskärmen
 
