@@ -661,6 +661,7 @@ kbd {
 .status-badge {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   min-height: 24px;
   border-radius: 6px;
   padding: 0 8px;
@@ -677,6 +678,14 @@ kbd {
   background: #dff8eb;
   color: #087443;
 }
+.status-badge.live::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: livePulse 1.5s ease-in-out infinite;
+}
 
 .status-badge.warning {
   background: #fff1d6;
@@ -691,6 +700,17 @@ kbd {
 .status-badge.neutral {
   background: #eef2f8;
   color: #52607a;
+}
+
+@keyframes livePulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.4);
+  }
 }
 
 .side-metrics {

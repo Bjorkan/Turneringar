@@ -115,6 +115,7 @@ test("admin kan klicka igenom huvudflödet, liveuppdatera och avsluta match", as
 
   await expect(page.getByRole("status")).toContainText("Livepoäng sparad.");
   await expect(row).toContainText("Pågår");
+  await expect(page.locator(".status-badge.live")).toHaveCount(1);
   await expect(row).toContainText("2 - 1");
   await page.getByRole("button", { name: /Pågår/ }).click();
   await expect(page.locator("#alla-matcher tbody")).toContainText("2 - 1");

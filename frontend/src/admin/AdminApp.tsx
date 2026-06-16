@@ -155,7 +155,7 @@ function NoticeBox({ notice, onClear }: { notice: Notice; onClear: () => void })
 
 function StatusBadge({ status }: { status?: string | null }) {
   const label = status ? statusText[status] || status : "Okänd";
-  return <span className={`status-badge ${statusTone(status)}`}>{label}</span>;
+  return <span className={`status-badge ${statusTone(status)}${status === "in_progress" ? " live" : ""}`}>{label}</span>;
 }
 
 function LoginView({
