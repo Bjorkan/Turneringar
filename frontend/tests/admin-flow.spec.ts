@@ -867,6 +867,33 @@ test("tv- och moderatorformulär blir inte absurt höga på mobil", async ({ pag
   expect(modLabelBox!.height).toBeLessThan(120);
 });
 
+test("tv-länkskort ryms på mobil", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await loginAsAdmin(page);
+
+  let response = await page.request.post("/api/tournaments", {
+    data: {
+      name: `TV Mobile ${Date.now()}`,
+      starts_at: "2026-06-14T10:00",
+      group_count: 2,
+      qualifiers_per_group: 1,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+
+  await page.goto("/admin/tv");
+  await expect(page.getByText("Live TV")).toBeVisible();
+
+  const metrics = await page.evaluate(() => {
+    return {
+      documentWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
+      viewportWidth: window.innerWidth,
+    };
+  });
+
+  expect(metrics.documentWidth).toBeLessThanOrEqual(metrics.viewportWidth + 10);
+});
+
 test("Live TV rymmer långa lagnamn på 1920-skärm", async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await loginAsAdmin(page);

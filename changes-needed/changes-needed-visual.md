@@ -280,6 +280,9 @@ Kod:
 
 En 440 px minsta kolumn är inte mobilkompatibel. Korten måste kunna bli smalare än 390 px inklusive padding.
 
+Status: Löst
+Jag ändrade `.tv-link-grid` från `minmax(440px, 1fr)` till `minmax(300px, 1fr)` så grid-kolumner blir smalare än 390 px på mobil. I mobilmediaqueryn fick `.binding-form` och `.tv-link-grid` båda `grid-template-columns: 1fr` så de aldrig kan bli bredare än viewporten. Regressionstestet `frontend/tests/admin-flow.spec.ts::tv-länkskort ryms på mobil` navigerar till TV-admin på 390 px och verifierar att dokumentet inte spricker.
+
 ## 15. TV-admins sidopanel "Senaste länkar" läcker långa etiketter på desktop
 
 Skärmdump:

@@ -1161,7 +1161,7 @@ button.filter-chip:focus-visible {
 }
 
 .tv-link-grid {
-  grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 }
 
 .tv-link-card {
@@ -2625,6 +2625,14 @@ body.tv {
   .moderator-match-card header {
     align-items: stretch;
     flex-direction: column;
+    grid-template-columns: 1fr;
+  }
+
+  .binding-form {
+    grid-template-columns: 1fr;
+  }
+
+  .tv-link-grid {
     grid-template-columns: 1fr;
   }
 
