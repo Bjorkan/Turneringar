@@ -1213,6 +1213,28 @@ test("schemavyn visar när resurs- och sidolistor fortsätter", async ({ page })
   await expect(unplacedPanel).toContainText(/match till saknar plats/);
 });
 
+test("admin-flikarna har horisontell scrollindikator på mobil", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await loginAsAdmin(page);
+  await createTournament(page);
+
+  const tabs = page.locator(".tournament-tabs");
+  await expect(tabs).toBeVisible();
+
+  const css = await page.evaluate(() => {
+    const el = document.querySelector<HTMLElement>(".tournament-tabs");
+    if (!el) return null;
+    const style = window.getComputedStyle(el);
+    return {
+      overflowX: style.overflowX,
+      backgroundAttachment: style.backgroundAttachment,
+    };
+  });
+  expect(css).not.toBeNull();
+  expect(css!.overflowX).toBe("auto");
+  expect(css!.backgroundAttachment).toContain("local");
+});
+
 test("TV-topbarens turneringsnamn har ellipsis och title för långa namn", async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await loginAsAdmin(page);

@@ -819,10 +819,17 @@ kbd {
   margin: 0 0 18px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.82);
   padding: 6px;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
   box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
+  background:
+    linear-gradient(90deg, #f8fbff 20px, transparent) local,
+    linear-gradient(270deg, #f8fbff 20px, transparent) scroll,
+    #f8fbff;
+  background-repeat: no-repeat;
+  background-size: 40px 100%;
 }
 
 .tournament-tabs a {
