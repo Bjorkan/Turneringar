@@ -1222,6 +1222,26 @@ test("admin ser varning om standard-PIN används", async ({ page }) => {
   }
 });
 
+test("admin kan ta bort TV-länk", async ({ page }) => {
+  await loginAsAdmin(page);
+  await page.goto("/admin/tv");
+  const deleteButton = page.locator(".tv-link-card .danger-outline").first();
+  if (await deleteButton.count() === 0) return;
+  page.on("dialog", (dialog) => dialog.accept());
+  await deleteButton.click();
+  await expect(page.getByRole("status")).toContainText("TV-länk borttagen.");
+});
+
+test("admin kan ta bort moderatorlänk", async ({ page }) => {
+  await prepareScheduledTournament(page);
+  await page.locator(".tournament-tabs").getByRole("link", { name: "Moderatorer" }).click();
+  const deleteButton = page.locator(".moderator-links-panel .danger-outline").first();
+  if (await deleteButton.count() === 0) return;
+  page.on("dialog", (dialog) => dialog.accept());
+  await deleteButton.click();
+  await expect(page.getByRole("status")).toContainText("Moderatorlänk borttagen.");
+});
+
 test("tom-state-texter i admin är informativa med handlingsanvisning", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await loginAsAdmin(page);

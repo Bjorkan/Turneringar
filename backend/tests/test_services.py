@@ -444,6 +444,35 @@ class TournamentServiceTests(unittest.TestCase):
             with self.conn:
                 store.create_tv_link(self.conn, "Fel kod", "kort")
 
+    def test_delete_tv_link_and_moderator_token(self) -> None:
+        tournament_id = self.create_seeded_tournament(participant_count=4, resource_count=1)
+
+        with self.conn:
+            tv_link = store.create_tv_link(self.conn, "Borttagen", "DELBORTTAG")
+
+        with self.conn:
+            store.delete_tv_link(self.conn, tv_link["id"])
+
+        with self.conn:
+            self.assertIsNone(store.get_tv_link_by_id(self.conn, tv_link["id"]))
+
+        with self.conn:
+            moderator = store.create_moderator_token(self.conn, tournament_id, "Borttagen mod", None)
+
+        with self.conn:
+            store.delete_moderator_token(self.conn, moderator["id"])
+
+        with self.conn:
+            self.assertIsNone(store.get_moderator_token_by_id(self.conn, moderator["id"]))
+
+        with self.assertRaisesRegex(ValueError, "finns inte"):
+            with self.conn:
+                store.delete_tv_link(self.conn, 999999)
+
+        with self.assertRaisesRegex(ValueError, "finns inte"):
+            with self.conn:
+                store.delete_moderator_token(self.conn, 999999)
+
 
 if __name__ == "__main__":
     unittest.main()

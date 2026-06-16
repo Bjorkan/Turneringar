@@ -335,6 +335,13 @@ def update_tv_link(
     return updated
 
 
+def delete_tv_link(conn: sqlite3.Connection, link_id: int) -> None:
+    existing = get_tv_link_by_id(conn, link_id)
+    if not existing:
+        raise ValueError("TV-länken finns inte.")
+    conn.execute("DELETE FROM tv_links WHERE id = ?", (link_id,))
+
+
 def create_moderator_token(
     conn: sqlite3.Connection,
     tournament_id: int,
@@ -365,6 +372,13 @@ def create_moderator_token(
         (tournament_id, resource_id, label.strip(), pin, token),
     )
     return get_moderator_token_by_id(conn, int(cursor.lastrowid))
+
+
+def delete_moderator_token(conn: sqlite3.Connection, token_id: int) -> None:
+    existing = get_moderator_token_by_id(conn, token_id)
+    if not existing:
+        raise ValueError("Moderatorlänken finns inte.")
+    conn.execute("DELETE FROM moderator_tokens WHERE id = ?", (token_id,))
 
 
 def list_moderator_tokens(conn: sqlite3.Connection, tournament_id: int) -> list[dict]:

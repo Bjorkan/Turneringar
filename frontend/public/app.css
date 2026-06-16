@@ -105,6 +105,24 @@ button:hover,
   border-color: var(--line-strong);
 }
 
+.button.danger-outline {
+  background: white;
+  color: #dc2626;
+  border-color: #fca5a5;
+  box-shadow: none;
+}
+
+.button.danger-outline:hover {
+  background: #fef2f2;
+  border-color: #dc2626;
+}
+
+.button.small {
+  min-height: 30px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
 h1,
 h2,
 h3,

@@ -522,6 +522,17 @@ function LiveTvAdmin({ onNotice, onError }: { onNotice: NoticeHandler; onError: 
     }
   };
 
+  const deleteTvLink = async (link: TvLink) => {
+    if (!confirm(`Ta bort TV-länken "${link.label}" (${link.code})?`)) return;
+    try {
+      await api(`/api/tv-links/${link.id}`, { method: "DELETE" });
+      onNotice("TV-länk borttagen.");
+      await load();
+    } catch (error) {
+      onError(error);
+    }
+  };
+
   return (
     <>
       <section className="page-head">
@@ -570,6 +581,7 @@ function LiveTvAdmin({ onNotice, onError }: { onNotice: NoticeHandler; onError: 
                       <div className="tv-link-url">
                         <input value={tvUrl(link)} readOnly aria-label="TV-länk" title={tvUrl(link)} />
                         <a className="button subtle" href={`/tv/${link.code}`} target="_blank" rel="noreferrer">Öppna</a>
+                        <button type="button" className="button danger-outline" onClick={() => deleteTvLink(link)}>Ta bort</button>
                       </div>
                       {draft ? (
                         <form className="binding-form" onSubmit={(event) => saveLink(event, link)}>
@@ -796,6 +808,17 @@ function TournamentView({
       return;
     }
     await postAction(`/api/tournaments/${id}/generate`, "Slutspel skapat.", { confirm_reset: confirmReset });
+  };
+
+  const deleteModerator = async (moderator: Moderator) => {
+    if (!confirm(`Ta bort moderatorlänken "${moderator.label}" (PIN ${moderator.pin})?`)) return;
+    try {
+      await api(`/api/tournaments/${id}/moderators/${moderator.id}`, { method: "DELETE" });
+      onNotice("Moderatorlänk borttagen.");
+      await load();
+    } catch (error) {
+      onError(error);
+    }
   };
 
   const openScoreDialog = (match: Match) => {
@@ -1179,9 +1202,9 @@ function TournamentView({
               <section className="panel moderator-links-panel">
                 <div className="panel-head"><h2>Moderatorlänkar</h2><span className="count-pill">{moderators.length}</span></div>
                 <table className="admin-table compact-table">
-                  <thead><tr><th>Etikett</th><th>Resurs</th><th>PIN</th><th>Status</th><th>Länk</th></tr></thead>
+                  <thead><tr><th>Etikett</th><th>Resurs</th><th>PIN</th><th>Status</th><th>Länk</th><th></th></tr></thead>
                   <tbody>
-                    {!moderators.length ? <tr><td colSpan={5}>Inga moderatorer ännu. Skapa en länk så kan moderatorer rapportera poäng från sina resurser.</td></tr> : null}
+                    {!moderators.length ? <tr><td colSpan={6}>Inga moderatorer ännu. Skapa en länk så kan moderatorer rapportera poäng från sina resurser.</td></tr> : null}
                     {moderators.map((moderator) => (
                       <tr key={moderator.id}>
                         <td><strong>{moderator.label}</strong></td>
@@ -1189,6 +1212,7 @@ function TournamentView({
                         <td><code>{moderator.pin}</code></td>
                         <td><span className="status-badge success">Aktiv</span></td>
                         <td><a href={`/m/${moderator.token}`}>Öppna</a></td>
+                        <td><button type="button" className="button danger-outline small" onClick={() => deleteModerator(moderator)}>Ta bort</button></td>
                       </tr>
                     ))}
                   </tbody>

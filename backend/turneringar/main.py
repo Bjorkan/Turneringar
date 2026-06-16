@@ -406,6 +406,23 @@ async def update_tv_link(request: Request, link_id: int) -> dict[str, Any]:
     return {"tv_link": tv_link}
 
 
+@app.delete("/api/tv-links/{link_id}")
+async def delete_tv_link(request: Request, link_id: int) -> dict[str, Any]:
+    require_admin(request)
+    try:
+        with session() as conn:
+            with conn:
+                tv_link = store.get_tv_link_by_id(conn, link_id)
+                if not tv_link:
+                    raise HTTPException(status_code=404, detail="TV-länken finns inte.")
+                code = tv_link["code"]
+                store.delete_tv_link(conn, link_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    tv_hub.publish(code, "tv_link_updated", {"code": code})
+    return {"ok": True}
+
+
 @app.get("/api/tv/{code}")
 def tv_link_payload(code: str) -> dict[str, Any]:
     return tv_payload(code)
@@ -578,6 +595,23 @@ async def add_moderator(request: Request, tournament_id: int) -> dict[str, Any]:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"moderator": moderator}
+
+
+@app.delete("/api/tournaments/{tournament_id}/moderators/{moderator_id}")
+async def delete_moderator(request: Request, tournament_id: int, moderator_id: int) -> dict[str, Any]:
+    require_admin(request)
+    try:
+        with session() as conn:
+            with conn:
+                mod = store.get_moderator_token_by_id(conn, moderator_id)
+                if not mod:
+                    raise HTTPException(status_code=404, detail="Moderatorlänken finns inte.")
+                if int(mod["tournament_id"]) != tournament_id:
+                    raise HTTPException(status_code=404, detail="Moderatorlänken finns inte i denna turnering.")
+                store.delete_moderator_token(conn, moderator_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True}
 
 
 @app.get("/api/moderators/{token}")
