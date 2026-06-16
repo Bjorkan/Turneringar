@@ -1,4 +1,19 @@
 import {
+  mdiAccountGroupOutline,
+  mdiCalendarClock,
+  mdiChevronLeft,
+  mdiChevronRight,
+  mdiCogOutline,
+  mdiLogout,
+  mdiMenu,
+  mdiScoreboardOutline,
+  mdiShieldAccountOutline,
+  mdiTelevisionPlay,
+  mdiTournament,
+  mdiTrophyVariant,
+  mdiViewDashboardOutline,
+} from "@mdi/js";
+import {
   type FormEvent,
   type MouseEvent,
   type ReactNode,
@@ -19,6 +34,7 @@ import {
   statusText,
   statusTone,
 } from "../shared/format";
+import { MdiIcon } from "../shared/MdiIcon";
 import type {
   DashboardData,
   Match,
@@ -36,7 +52,7 @@ type ErrorHandler = (error: unknown) => void;
 
 type NavItem = {
   label: string;
-  glyph: string;
+  icon: string;
   tournamentOnly?: boolean;
   external?: boolean;
 };
@@ -55,15 +71,15 @@ function moreText(count: number, singular: string, plural: string): string {
 }
 
 const navItems: NavItem[] = [
-  { label: "Turneringar", glyph: "T" },
-  { label: "Live TV", glyph: "TV" },
-  { label: "Översikt", glyph: "Ö", tournamentOnly: true },
-  { label: "Matcher", glyph: "M", tournamentOnly: true },
-  { label: "Deltagare", glyph: "D", tournamentOnly: true },
-  { label: "Schema", glyph: "S", tournamentOnly: true },
-  { label: "Slutspel", glyph: "SL", tournamentOnly: true },
-  { label: "Moderatorer", glyph: "MO", tournamentOnly: true },
-  { label: "Inställningar", glyph: "IN", tournamentOnly: true },
+  { label: "Turneringar", icon: mdiTrophyVariant },
+  { label: "Live TV", icon: mdiTelevisionPlay },
+  { label: "Översikt", icon: mdiViewDashboardOutline, tournamentOnly: true },
+  { label: "Matcher", icon: mdiScoreboardOutline, tournamentOnly: true },
+  { label: "Deltagare", icon: mdiAccountGroupOutline, tournamentOnly: true },
+  { label: "Schema", icon: mdiCalendarClock, tournamentOnly: true },
+  { label: "Slutspel", icon: mdiTournament, tournamentOnly: true },
+  { label: "Moderatorer", icon: mdiShieldAccountOutline, tournamentOnly: true },
+  { label: "Inställningar", icon: mdiCogOutline, tournamentOnly: true },
 ];
 
 const sectionTargets: Record<string, string> = {
@@ -155,7 +171,7 @@ function LoginView({
     <main className="page guest-page">
       <NoticeBox notice={notice} onClear={onClear} />
       <section className="login-panel panel narrow">
-        <div className="login-mark">T</div>
+        <div className="login-mark" aria-hidden="true"><MdiIcon path={mdiTrophyVariant} /></div>
         <p className="eyebrow">Lokal eventserver</p>
         <h1>Logga in</h1>
         <form className="stack" onSubmit={onLogin}>
@@ -211,7 +227,7 @@ function AdminShell({
     <div className={`admin-shell ${compact ? "menu-collapsed" : ""}`}>
       <aside className="sidebar">
         <a className="brand" href="/admin" onClick={(event) => { event.preventDefault(); onNavigate("/admin"); }}>
-          <span className="brand-mark" aria-hidden="true">T</span>
+          <span className="brand-mark" aria-hidden="true"><MdiIcon path={mdiTrophyVariant} /></span>
           <span>Turneringar</span>
         </a>
         <nav className="side-nav">
@@ -222,14 +238,18 @@ function AdminShell({
               className={item.label === active ? "active" : undefined}
               onClick={(event) => follow(event, item)}
             >
-              <span className="nav-glyph" aria-hidden="true">{item.glyph}</span>
+              <span className="nav-glyph" aria-hidden="true"><MdiIcon path={item.icon} /></span>
               <span>{item.label}</span>
             </a>
           ))}
         </nav>
-        <button className="link-button" type="button" onClick={onLogout}>Logga ut</button>
+        <button className="link-button" type="button" onClick={onLogout}>
+          <MdiIcon path={mdiLogout} />
+          <span>Logga ut</span>
+        </button>
         <button className="side-collapse" type="button" onClick={() => setCompact((value) => !value)}>
-          {compact ? "Visa meny" : "Minimera"}
+          <MdiIcon path={compact ? mdiChevronRight : mdiChevronLeft} />
+          <span>{compact ? "Visa meny" : "Minimera"}</span>
         </button>
       </aside>
 
@@ -241,7 +261,7 @@ function AdminShell({
             aria-label={compact ? "Visa meny" : "Minimera meny"}
             onClick={() => setCompact((value) => !value)}
           >
-            ☰
+            <MdiIcon path={mdiMenu} />
           </button>
           <div className="topbar-context" aria-label="Aktuell vy">
             <small>Vy</small>

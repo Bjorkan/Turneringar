@@ -1,3 +1,4 @@
+import { mdiTelevisionPlay } from "@mdi/js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../shared/api";
 import {
@@ -8,6 +9,7 @@ import {
   sortBySchedule,
   statusText,
 } from "../shared/format";
+import { MdiIcon } from "../shared/MdiIcon";
 import type { Match, TvPayload } from "../shared/types";
 
 const tvCode = location.pathname.split("/").pop() || "";
@@ -41,6 +43,10 @@ function roundTitle(round: RoundGroup): string {
 
 function moreText(count: number, singular: string, plural: string): string {
   return count === 1 ? `1 ${singular} till` : `${count} ${plural} till`;
+}
+
+function TvBrand() {
+  return <div className="tv-brand"><span aria-hidden="true"><MdiIcon path={mdiTelevisionPlay} /></span><strong>Live TV</strong></div>;
 }
 
 export function TvApp() {
@@ -140,7 +146,7 @@ export function TvApp() {
     return (
       <section className="tv-waiting">
         <div className="tv-waiting-card">
-          <div className="tv-brand"><span aria-hidden="true">T</span><strong>Live TV</strong></div>
+          <TvBrand />
           <h1>{data.message}</h1>
           <p>{tvLink?.label} · {tvLink?.code}</p>
           <div className="tv-pulse" aria-hidden="true"><span /><span /><span /></div>
@@ -152,7 +158,7 @@ export function TvApp() {
   return (
     <>
       <header className="tv-topbar">
-        <div className="tv-brand"><span aria-hidden="true">T</span><strong>Live TV</strong></div>
+        <TvBrand />
         <div className="tv-meta-block"><small>Turnering</small><strong>{tournament.name}</strong><span>{formatDate(tournament.starts_at)}</span></div>
         <div className="tv-clock"><strong>{formatClock(now)}</strong><span>{formatDate(now.toISOString())}</span></div>
         <div className="tv-meta-block"><small>Sida {activeIndex + 1} av {slides.length}</small><strong>Nästa vy om {secondsLeft} s</strong></div>

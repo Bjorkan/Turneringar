@@ -77,6 +77,13 @@ button:hover,
   border-color: var(--blue-strong);
 }
 
+.mdi-icon {
+  display: block;
+  width: 1em;
+  height: 1em;
+  flex: 0 0 auto;
+}
+
 .button.primary {
   background: var(--blue);
   border-color: var(--blue);
@@ -191,6 +198,11 @@ kbd {
   font-weight: 900;
 }
 
+.brand-mark .mdi-icon,
+.login-mark .mdi-icon {
+  font-size: 24px;
+}
+
 .side-nav {
   display: grid;
   gap: 8px;
@@ -224,6 +236,16 @@ kbd {
   color: #475467;
   font-size: 11px;
   font-weight: 900;
+}
+
+.nav-glyph .mdi-icon {
+  font-size: 18px;
+}
+
+.link-button > .mdi-icon,
+.side-collapse > .mdi-icon {
+  width: 28px;
+  font-size: 18px;
 }
 
 .side-nav a:hover,
@@ -1616,6 +1638,10 @@ body.tv {
   place-items: center;
   border-radius: 8px;
   background: linear-gradient(135deg, #2f80ff, #155ee8);
+}
+
+.tv-brand span .mdi-icon {
+  font-size: 34px;
 }
 
 .tv-meta-block small,
