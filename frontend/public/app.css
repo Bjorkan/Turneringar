@@ -1574,6 +1574,17 @@ label {
   padding-bottom: 10px;
 }
 
+.mini-list article > div,
+.activity-list article > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.mini-list article strong,
+.activity-list article strong {
+  overflow-wrap: anywhere;
+}
+
 .mini-list small,
 .activity-list small {
   display: block;

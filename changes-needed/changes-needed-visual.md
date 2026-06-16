@@ -104,6 +104,9 @@ Kod:
 
 Flexrader med namn och badge måste begränsa textdelen. Just nu får texten vinna över kortet.
 
+Status: Löst
+Jag gav textblocket i `.mini-list article` `min-width: 0` och `overflow-wrap: anywhere`, så långa kvalificerade lagnamn bryts i stället för att trycka ut panelkanten. Poängpillret ligger kvar som flexbarn med sin naturliga bredd, medan namntexten nu får krympa och bryta långa tokens. Regressionstestet `frontend/tests/admin-flow.spec.ts::kvalificerade-listan bryter långa lagnamn i slutspelspanelen` skapar en turnering med ett extremt långt lagnamn på 390 px och verifierar att namnet stannar i panelen.
+
 ## 6. Slutspelstabellen på admin-sidan saknar textstrategi för långa lagnamn
 
 Skärmdumpar:
