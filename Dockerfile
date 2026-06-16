@@ -10,6 +10,8 @@ RUN npm run build:frontend
 
 FROM python:3.12-slim
 
+# SESSION_SECRET MÅSTE sättas vid körning (-e SESSION_SECRET=...).
+# Utan den är sessioner ogiltiga efter varje omstart.
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     TURNERINGAR_DB=/data/turneringar/turneringar.sqlite3

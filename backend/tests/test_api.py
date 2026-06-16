@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
+from http.cookiejar import Cookie, CookieJar
 import json
 import os
 from pathlib import Path
@@ -15,7 +16,6 @@ from urllib.parse import urljoin
 from urllib.request import HTTPCookieProcessor, Request, build_opener
 
 import pytest
-from http.cookiejar import CookieJar
 
 
 def _iso(hours: int = 0) -> str:
@@ -77,13 +77,15 @@ class ApiClient:
         if msg:
             pytest.fail(msg)
 
-    def request(self, method: str, path: str, payload: dict[str, object] | None = None) -> ApiResponse:
+    def request(self, method: str, path: str, payload: dict[str, object] | None = None, extra_headers: dict[str, str] | None = None) -> ApiResponse:
         self._require_alive()
         body = None
-        headers = {}
+        headers: dict[str, str] = {}
         if payload is not None:
             body = json.dumps(payload).encode("utf-8")
             headers["Content-Type"] = "application/json"
+        if extra_headers:
+            headers.update(extra_headers)
         request = Request(
             urljoin(self.base_url, path),
             data=body,
@@ -622,3 +624,97 @@ def test_rate_limit_blocks_after_many_failed_logins(client: ApiClient) -> None:
     resp = client.post("/api/admin/login", json={"pin": wrong_pin})
     assert resp.status_code == 429
     assert "För många" in resp.text
+
+
+def test_session_survives_server_restart_with_fixed_secret(tmp_path: Path) -> None:
+    fixed_secret = "test-session-secret-for-restart-test"
+    port1 = free_port()
+    port2 = free_port()
+    assert port1 != port2
+
+    env: dict[str, str] = {
+        **dict(os.environ),
+        "ADMIN_PIN": "test-pin",
+        "SESSION_SECRET": fixed_secret,
+        "TURNERINGAR_DB": str(tmp_path / "turneringar.sqlite3"),
+    }
+
+    procs: list[subprocess.Popen[str]] = []
+
+    def _start_server(p: int) -> tuple[subprocess.Popen[str], ServerProcess, ApiClient]:
+        proc = subprocess.Popen(
+            [
+                sys.executable,
+                "-m",
+                "uvicorn",
+                "turneringar.main:app",
+                "--app-dir",
+                "backend",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                str(p),
+                "--log-level",
+                "warning",
+            ],
+            cwd=ROOT,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        procs.append(proc)
+        server = ServerProcess(proc)
+        client = ApiClient(f"http://127.0.0.1:{p}", server)
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            health = server.health()
+            if health:
+                pytest.fail(f"Server on port {p} died early\n{health}")
+            try:
+                if client.get("/api/session").status_code == 200:
+                    break
+            except URLError:
+                time.sleep(0.1)
+        else:
+            server.terminate()
+            pytest.fail(f"Server on port {p} did not start")
+        return proc, server, client
+
+    try:
+        _, server1, api1 = _start_server(port1)
+        resp = api1.post("/api/admin/login", json={"pin": "test-pin"})
+        assert resp.status_code == 200
+        session_cookie = next(
+            (c for c in resp.set_cookies if c.startswith("turneringar_admin_session=")),
+            None,
+        )
+        assert session_cookie is not None, "No session cookie in login response"
+
+        server1.terminate()
+
+        _, server2, api2 = _start_server(port2)
+
+        cookie_value = session_cookie.split(";", 1)[0].split("=", 1)[1]
+        # Use a raw request with the cookie directly (bypass CookieJar to avoid
+        # conflicts between the manually set cookie and the processor's jar)
+        raw_req = Request(
+            f"http://127.0.0.1:{port2}/api/tournaments",
+            headers={
+                "Cookie": f"turneringar_admin_session={cookie_value}",
+            },
+            method="GET",
+        )
+        import urllib.request
+        raw_resp = urllib.request.urlopen(raw_req, timeout=5)
+        assert raw_resp.status == 200, (
+            f"Expected 200 with saved session cookie after restart, got {raw_resp.status}"
+        )
+    finally:
+        for p in procs:
+            try:
+                p.terminate()
+                p.communicate(timeout=5)
+            except subprocess.TimeoutExpired:
+                p.kill()
+                p.communicate(timeout=5)

@@ -9,6 +9,7 @@ import json
 import os
 import secrets
 import sqlite3
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -29,7 +30,15 @@ LEGACY_ADMIN_COOKIE = "turneringar_admin_pin"
 MODERATOR_COOKIE_PREFIX = "turneringar_moderator_session_"
 LEGACY_MODERATOR_COOKIE_PREFIX = "moderator_"
 ADMIN_PIN = os.environ.get("ADMIN_PIN", "admin123")
-SESSION_SECRET = os.environ.get("SESSION_SECRET") or secrets.token_urlsafe(32)
+_raw_secret = os.environ.get("SESSION_SECRET")
+if not _raw_secret:
+    print("VARNING: SESSION_SECRET är inte satt — sessioner överlever inte omstart. Sätt SESSION_SECRET i produktionsmiljö.", file=sys.stderr, flush=True)
+    SESSION_SECRET: str = secrets.token_urlsafe(32)
+else:
+    if _raw_secret in ("ändra-mig-till-en-lång-slumpad-nyckel", ""):
+        print("VARNING: SESSION_SECRET har inte ändrats från exempelvärdet — detta är osäkert!", file=sys.stderr, flush=True)
+    SESSION_SECRET: str = _raw_secret
+del _raw_secret
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
 PARTICIPANT_KINDS = {"team", "player"}
 RESOURCE_KINDS = {"court", "server", "table"}

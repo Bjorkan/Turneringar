@@ -7,6 +7,7 @@ services:
       - "8000:8000"
     environment:
       ADMIN_PIN: "byt-mig"
+      SESSION_SECRET: "ändra-mig-till-en-lång-slumpad-nyckel"
       TURNERINGAR_DB: "/data/turneringar/turneringar.sqlite3"
     volumes:
       - ./data/turneringar:/data/turneringar

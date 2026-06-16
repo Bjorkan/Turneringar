@@ -58,7 +58,7 @@ def test_ci_runs_strict_build_test_and_publish_checks() -> None:
     assert "name: Publicera Docker-image" in workflow
     assert "Installera backend-beroenden" in workflow
     assert "Bygg React-frontenden" in workflow
-    assert "Smoke-testa testimagen" in workflow
+    assert "Smoke-testa och verifiera persistens efter omstart" in workflow
     assert "Logga in i GitHub Packages" in workflow
     assert "Logga in i Docker Hub" in workflow
     assert "npm run typecheck" in workflow

@@ -63,15 +63,18 @@ jobs:
       - name: Bygg lokal testimage
         run: docker build -t turneringar:test .
 
-      - name: Smoke-testa testimagen
+      - name: Smoke-testa och verifiera persistens efter omstart
         run: |
           docker volume create turneringar-test-data
           docker run -d --name turneringar-test -p 8000:8000 \
             -v turneringar-test-data:/data/turneringar \
             -e ADMIN_PIN=test-pin \
+            -e SESSION_SECRET=ci-test-secret \
             -e TURNERINGAR_DB=/data/turneringar/test.sqlite3 \
             turneringar:test
           trap 'docker logs turneringar-test || true; docker rm -f turneringar-test || true; docker volume rm turneringar-test-data || true' EXIT
+
+          # Smoke-testa att servern är igång
           for attempt in {1..30}; do
             if curl --fail --silent http://127.0.0.1:8000/api/session > /tmp/session.json; then
               break
@@ -91,26 +94,28 @@ jobs:
           test -s /tmp/tv.js
           test -s /tmp/react-chunk.js
 
-      - name: Testa datapersistens efter omstart
-        run: |
-          # Skapa data via API
-          curl --fail --silent -c /tmp/cookies.txt -b /tmp/cookies.txt \
+          # Logga in och spara sessions-cookie (före omstart)
+          curl --fail --silent -c /tmp/session-cookies.txt \
             -X POST http://127.0.0.1:8000/api/admin/login \
             -H "Content-Type: application/json" \
             -d '{"pin":"test-pin"}' > /tmp/login.json
-          curl --fail --silent -c /tmp/cookies.txt -b /tmp/cookies.txt \
+          grep -q '"ok":true' /tmp/login.json
+
+          # Skapa data via API
+          curl --fail --silent -b /tmp/session-cookies.txt \
             -X POST http://127.0.0.1:8000/api/tournaments \
             -H "Content-Type: application/json" \
             -d '{"name":"Persistens-test","starts_at":"2028-01-01T10:00","group_count":2,"qualifiers_per_group":1}' > /tmp/create.json
           tournament_id=$(python3 -c "import json;print(json.load(open('/tmp/create.json'))['id'])")
           test -n "$tournament_id"
 
-          # Starta om containern
+          # Starta om containern med samma SESSION_SECRET
           docker stop turneringar-test
           docker rm turneringar-test
           docker run -d --name turneringar-test -p 8000:8000 \
             -v turneringar-test-data:/data/turneringar \
             -e ADMIN_PIN=test-pin \
+            -e SESSION_SECRET=ci-test-secret \
             -e TURNERINGAR_DB=/data/turneringar/test.sqlite3 \
             turneringar:test
           for attempt in {1..30}; do
@@ -120,12 +125,14 @@ jobs:
             sleep 1
           done
 
+          # Sessions-cookie från före omstart ska fortfarande gälla
+          curl --fail --silent -b /tmp/session-cookies.txt \
+            "http://127.0.0.1:8000/api/session" > /tmp/session-after-restart.json
+          grep -q '"is_admin":true' /tmp/session-after-restart.json
+          echo "Session survived restart!"
+
           # Verifiera att turneringen finns kvar efter omstart
-          curl --fail --silent -c /tmp/cookies.txt -b /tmp/cookies.txt \
-            -X POST http://127.0.0.1:8000/api/admin/login \
-            -H "Content-Type: application/json" \
-            -d '{"pin":"test-pin"}' > /dev/null
-          curl --fail --silent -c /tmp/cookies.txt -b /tmp/cookies.txt \
+          curl --fail --silent -b /tmp/session-cookies.txt \
             "http://127.0.0.1:8000/api/tournaments" > /tmp/tournaments.json
           grep -q "Persistens-test" /tmp/tournaments.json
           echo "Data persisted across restart!"
