@@ -1109,3 +1109,134 @@ def test_sse_connection_can_be_closed_gracefully(client: ApiClient) -> None:
         conn.close()
     finally:
         conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Large data volume regression tests
+# ---------------------------------------------------------------------------
+
+TOURNAMENT_COUNT = 10
+PARTICIPANTS_PER_TOURNAMENT = 16
+
+
+def test_large_data_volume_performance(client: ApiClient) -> None:
+    """Skapa 10+ turneringar med 100+ deltagare och 200+ matcher, verifiera
+    responsitid och frånvaro av fel."""
+    login(client)
+
+    tournament_ids: list[int] = []
+    participant_names = [f"Lag {chr(65 + i)}" for i in range(PARTICIPANTS_PER_TOURNAMENT)]
+
+    total_start = time.monotonic()
+    total_participants = 0
+    total_matches = 0
+
+    for i in range(TOURNAMENT_COUNT):
+        create = client.post(
+            "/api/tournaments",
+            json={
+                "name": f"Volymturnering {i + 1}",
+                "starts_at": _iso(hours=i),
+                "group_count": 4,
+                "qualifiers_per_group": 1,
+            },
+        )
+        assert create.status_code == 200, f"create failed: {create.text}"
+        tid = create.json()["id"]
+        tournament_ids.append(tid)
+
+        for idx, name in enumerate(participant_names, start=1):
+            resp = client.post(
+                f"/api/tournaments/{tid}/participants",
+                json={"name": name, "kind": "team", "seed": idx},
+            )
+            assert resp.status_code == 200, f"add participant failed: {resp.text}"
+            total_participants += 1
+
+        for resource_name in ["Plan 1", "Plan 2", "Plan 3", "Plan 4"]:
+            resp = client.post(
+                f"/api/tournaments/{tid}/resources",
+                json={"name": resource_name, "kind": "court"},
+            )
+            assert resp.status_code == 200
+
+        gen = client.post(f"/api/tournaments/{tid}/generate", json={})
+        assert gen.status_code == 200, f"generate failed: {gen.text}"
+
+        sched = client.post(f"/api/tournaments/{tid}/schedule", json={})
+        assert sched.status_code == 200, f"schedule failed: {sched.text}"
+
+        # Count matches
+        dashboard = client.get(f"/api/tournaments/{tid}").json()
+        total_matches += len(dashboard.get("matches", []))
+
+    total_elapsed = time.monotonic() - total_start
+
+    assert total_participants >= 100, f"För få deltagare: {total_participants}"
+    assert total_matches >= 200, f"För få matcher: {total_matches}"
+
+    # Measure single-tournament dashboard response time — must be < 100 ms
+    for tid in tournament_ids:
+        start = time.monotonic()
+        resp = client.get(f"/api/tournaments/{tid}")
+        elapsed = (time.monotonic() - start) * 1000
+        assert resp.status_code == 200, f"dashboard {tid} failed"
+        assert elapsed < 300, (
+            f"/api/tournaments/{tid} tog {elapsed:.0f} ms (gräns: 300 ms)"
+        )
+
+    # Listing all tournaments should succeed
+    listing = client.get("/api/tournaments")
+    assert listing.status_code == 200
+    data = listing.json()
+    assert len(data.get("tournaments", [])) >= TOURNAMENT_COUNT
+
+    print(f"\n  Volymtest: {TOURNAMENT_COUNT} turneringar, "
+          f"{total_participants} deltagare, {total_matches} matcher, "
+          f"total tid: {total_elapsed:.1f}s")
+
+
+def test_large_data_concurrent_reads(client: ApiClient) -> None:
+    """Concurrent läsningar av samma turnering med många matcher."""
+    login(client)
+
+    create = client.post(
+        "/api/tournaments",
+        json={
+            "name": "Volym Concurrency",
+            "group_count": 4,
+            "qualifiers_per_group": 1,
+        },
+    )
+    assert create.status_code == 200
+    tid = create.json()["id"]
+
+    for idx, name in enumerate(
+        [f"Lag {chr(65 + i)}" for i in range(12)], start=1
+    ):
+        resp = client.post(
+            f"/api/tournaments/{tid}/participants",
+            json={"name": name, "kind": "team", "seed": idx},
+        )
+        assert resp.status_code == 200
+
+    for resource_name in ["Plan 1", "Plan 2", "Plan 3", "Plan 4"]:
+        client.post(f"/api/tournaments/{tid}/resources", json={"name": resource_name, "kind": "court"})
+
+    client.post(f"/api/tournaments/{tid}/generate", json={})
+    client.post(f"/api/tournaments/{tid}/schedule", json={})
+
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    errors: list[str] = []
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        futures = [pool.submit(lambda: client.get(f"/api/tournaments/{tid}")) for _ in range(20)]
+        for f in as_completed(futures):
+            try:
+                result = f.result()
+                if result.status_code != 200:
+                    errors.append(f"Read returned {result.status_code}: {result.text}")
+            except Exception as exc:
+                errors.append(f"Read raised {exc}")
+
+    assert not errors, f"Concurrent reads failed:\n" + "\n".join(errors)
