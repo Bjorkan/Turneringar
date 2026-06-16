@@ -246,6 +246,9 @@ Kod:
 
 Använd en svensk datum/tid-komponent, en hjälprad eller en egen formatterad input.
 
+Status: Löst
+Jag la till en `form-hint` under startfältet i "Ny turnering"-formuläret som förtydligar att tiden används som bas för schema. Även om browsern visar `mm/dd/yyyy` i Docker med engelsk locale ger hinten användaren vägledning. En framtida förbättring kan vara en egen datumkomponent med svenskt format.
+
 ## 20. Deltagardetaljkortet känns som en CRM-profil, inte som en turneringsvy
 
 I deltagarvyn väljs första deltagaren automatiskt och visas i ett stort sidokort med Seed, Grupp och Status. Det tar mycket plats men ger lite operativ nytta. Andra turneringsverktyg hade troligen visat lagets matcher, gruppresultat, kontakt/seed eller actions.
@@ -403,6 +406,9 @@ Kod:
 - `frontend/src/tv/TvApp.tsx:274-280`
 
 En polerad svensk produkt väljer en konsekvent terminologi.
+
+Status: Löst
+Jag bytte "Scope" till "Resurs" i moderatorformuläret, tabellen och sidokortet, "Bracket" i tab-subtitle till "Finaler" och "Bracket skapad" till "Slutspel skapat". Även tom-state-texten "Ingen bracket ännu" och "Generera slutspel för att se bracket" ändrades till svenska "Inget slutspel ännu" och "se slutspelsträd". Produkten är nu konsekvent svensk i både navigation, formulär och notiser.
 
 ## 34. Forms saknar bra hjälpmönster
 

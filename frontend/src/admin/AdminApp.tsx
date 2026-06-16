@@ -399,6 +399,7 @@ function AdminHome({
             <form id="create-tournament" className="stack" onSubmit={createTournament}>
               <label>Namn <input name="name" required placeholder="Sommarcupen" /></label>
               <label>Start <input name="starts_at" type="datetime-local" /></label>
+              <p className="form-hint">Ange starttid för turneringen, används som bas för schema.</p>
               <div className="form-grid two">
                 <label>Grupper <input name="group_count" type="number" min="1" defaultValue="2" /></label>
                 <label>Vidare/grupp <input name="qualifiers_per_group" type="number" min="1" defaultValue="2" /></label>
@@ -785,7 +786,7 @@ function TournamentView({
     ) {
       return;
     }
-    await postAction(`/api/tournaments/${id}/generate`, "Bracket skapad.", { confirm_reset: confirmReset });
+    await postAction(`/api/tournaments/${id}/generate`, "Slutspel skapat.", { confirm_reset: confirmReset });
   };
 
   const openScoreDialog = (match: Match) => {
@@ -843,7 +844,7 @@ function TournamentView({
         <a href="#matcher" className={activeSection === "matcher" ? "active" : undefined}><span>Matcher</span><small>Poäng</small></a>
         <a href="#deltagare" className={activeSection === "deltagare" ? "active" : undefined}><span>Deltagare</span><small>Lag</small></a>
         <a href="#schema" className={activeSection === "schema" ? "active" : undefined}><span>Schema</span><small>Planer</small></a>
-        <a href="#slutspel" className={activeSection === "slutspel" ? "active" : undefined}><span>Slutspel</span><small>Bracket</small></a>
+        <a href="#slutspel" className={activeSection === "slutspel" ? "active" : undefined}><span>Slutspel</span><small>Finaler</small></a>
         <a href="#moderatorer" className={activeSection === "moderatorer" ? "active" : undefined}><span>Moderatorer</span><small>Länkar</small></a>
         <a href="#inställningar" className={activeSection === "inställningar" ? "active" : undefined}><span>Inställningar</span><small>Tider</small></a>
       </nav>
@@ -887,10 +888,10 @@ function TournamentView({
             <section className={showSection("slutspel") ? "section-grid bracket-page" : "split-panels"}>
               <section className="panel" id="slutspel">
                 <div className="panel-head">
-                  <div><h2>Slutspel - översikt</h2><p>{knockoutRounds.length ? `${knockoutRounds.length} rundor` : "Ingen bracket ännu"}</p></div>
+                  <div><h2>Slutspel - översikt</h2><p>{knockoutRounds.length ? `${knockoutRounds.length} rundor` : "Inget slutspel ännu"}</p></div>
                   {showSection("slutspel") ? <button className="button subtle" type="button" onClick={() => void regenerateStructure()}>Generera</button> : null}
                 </div>
-                {!knockoutRounds.length ? <p className="empty">Generera slutspel för att se bracket.</p> : null}
+                {!knockoutRounds.length ? <p className="empty">Generera slutspel för att se slutspelsträd.</p> : null}
                 {knockoutRounds.length ? (
                   <div className="bracket-preview">
                     {knockoutRounds.map((round) => (
@@ -1161,7 +1162,7 @@ function TournamentView({
                 <div className="panel-head"><div><h2>Skapa moderatorlänk</h2><p>{resources.length} resurser kan begränsas</p></div><span className="count-pill">{moderators.length} aktiva</span></div>
                 <form className="inline-form moderator-create-form" onSubmit={(event) => { event.preventDefault(); void submitForm(`/api/tournaments/${id}/moderators`, "POST", event.currentTarget, "Moderatorlänk skapad."); }}>
                   <label>Etikett <input name="label" required placeholder="Moderator plan 1" /></label>
-                  <label>Scope <select name="resource_id" defaultValue=""><option value="">Alla resurser</option>{resources.map((resource) => <option key={resource.id} value={resource.id}>{resource.name}</option>)}</select></label>
+                  <label>Resurs <select name="resource_id" defaultValue=""><option value="">Alla resurser</option>{resources.map((resource) => <option key={resource.id} value={resource.id}>{resource.name}</option>)}</select></label>
                   <button type="submit">Skapa länk</button>
                 </form>
               </section>
@@ -1169,7 +1170,7 @@ function TournamentView({
               <section className="panel moderator-links-panel">
                 <div className="panel-head"><h2>Moderatorlänkar</h2><span className="count-pill">{moderators.length}</span></div>
                 <table className="admin-table compact-table">
-                  <thead><tr><th>Etikett</th><th>Scope</th><th>PIN</th><th>Status</th><th>Länk</th></tr></thead>
+                  <thead><tr><th>Etikett</th><th>Resurs</th><th>PIN</th><th>Status</th><th>Länk</th></tr></thead>
                   <tbody>
                     {!moderators.length ? <tr><td colSpan={5}>Inga moderatorer ännu.</td></tr> : null}
                     {moderators.map((moderator) => (
@@ -1396,7 +1397,7 @@ function ModeratorView({
                 <span className="status-badge success">Aktiv</span>
                 <dl className="detail-list">
                   <div><dt>Inloggad som</dt><dd>{data.moderator.label}</dd></div>
-                  <div><dt>Scope</dt><dd>{data.moderator.resource_name || "Alla resurser"}</dd></div>
+                  <div><dt>Resurs</dt><dd>{data.moderator.resource_name || "Alla resurser"}</dd></div>
                   <div><dt>Matcher</dt><dd>{moderatorCounts.all}</dd></div>
                 </dl>
               </aside>
