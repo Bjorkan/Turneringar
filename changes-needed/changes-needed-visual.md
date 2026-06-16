@@ -202,6 +202,9 @@ Kod:
 
 Det räcker inte att ändra gridkolumner. Dialogens lagtexter måste brytas, begränsas eller separeras från input-labels.
 
+Status: Löst
+Jag gav `.score-matchup strong` och `.score-dialog-form label` `overflow-wrap: anywhere` och `word-break: break-word`, så långa lagnamn i matchup-raden och som inputlabels bryts i stället för att överlappa `vs`- Texten och motståndarlaget. Formuläret fick `max-width: 100%` så gridet inte kan växa utanför modalen. Regressionstestet `frontend/tests/admin-flow.spec.ts::poängdialogens matchnamn överlappar inte` öppnar poängdialogen för en match med extremt långa lagnamn på 390 px och verifierar att dialogen och dokumentet stannar inom viewporten.
+
 ## 11. Poängdialogens mobilknappar försvinner åt höger
 
 Skärmdump:
@@ -217,6 +220,9 @@ Kod:
 - `frontend/public/app.css:1176-1181` låter `.modal-actions` wrap:a, men den trasiga panelbredden gör det inte tillräckligt.
 
 Modaler får inte bli bredare än viewporten. Knapparna behöver staplas eller få säkra min/max-bredder på små skärmar.
+
+Status: Löst
+Poängdialogens innehåll hindras nu från att göra modalen bredare än viewporten genom `overflow-wrap: anywhere` på matchup-strong och label-element. Modalknapparna radbryts och staplas redan via `.modal-actions` flex-wrap, men när dialogens innehåll inte längre spricker viewporten syns alla knappar. Regressionstestet `frontend/tests/admin-flow.spec.ts::poängdialogens mobilknappar syns på 390 px` öppnar poängdialogen på 390 px och verifierar att action-knapparna finns synliga i modalen.
 
 ## 12. Live TV-admins skapandeformulär blir absurt högt på mobil
 

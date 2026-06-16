@@ -717,6 +717,123 @@ test("tid-editorn trycker inte iväg åtgärdskolumnen", async ({ page }) => {
   expect(metrics!.detailsFitsPanel).toBeTruthy();
 });
 
+test("poängdialogens matchnamn överlappar inte", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await loginAsAdmin(page);
+
+  const tournamentName = `Score Dialog ${Date.now()}`;
+  let response = await page.request.post("/api/tournaments", {
+    data: {
+      name: tournamentName,
+      starts_at: "2026-06-14T10:00",
+      group_count: 2,
+      qualifiers_per_group: 1,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+  const tournament = await response.json() as { id: number };
+
+  const longNameA = `ExtremtLångtObrutetLagnamnSomFårPlatsIDialogenA${Date.now()}`;
+  const longNameB = `ExtremtLångtObrutetLagnamnSomFårPlatsIDialogenB${Date.now()}`;
+  await page.request.post(`/api/tournaments/${tournament.id}/participants`, {
+    data: { name: longNameA, kind: "team", seed: 1 },
+  });
+  await page.request.post(`/api/tournaments/${tournament.id}/participants`, {
+    data: { name: longNameB, kind: "team", seed: 2 },
+  });
+
+  await page.request.post(`/api/tournaments/${tournament.id}/generate`, {
+    data: { confirm_reset: true },
+  });
+
+  await page.goto(`/tournaments/${tournament.id}#alla-matcher`);
+  await expect(page.getByText("Alla matcher")).toBeVisible();
+
+  const poangButton = page.locator("button").filter({ hasText: "Poäng" }).first();
+  await poangButton.click();
+
+  await expect(page.getByRole("dialog")).toBeVisible();
+
+  const metrics = await page.evaluate(() => {
+    const dialog = document.querySelector(".modal-panel");
+    if (!dialog) return null;
+    const dialogBox = dialog.getBoundingClientRect();
+    const matchup = dialog.querySelector(".score-matchup");
+    if (!matchup) return null;
+    const matchupBox = matchup.getBoundingClientRect();
+    return {
+      documentWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
+      viewportWidth: window.innerWidth,
+      dialogWidth: dialogBox.width,
+      dialogRight: dialogBox.right,
+      matchupFitsDialog: matchupBox.right <= dialogBox.right + 2,
+      viewportRight: window.innerWidth,
+    };
+  });
+
+  expect(metrics).not.toBeNull();
+  expect(metrics!.documentWidth).toBeLessThanOrEqual((metrics!.viewportWidth ?? 0) + 10);
+  expect(metrics!.matchupFitsDialog).toBeTruthy();
+});
+
+test("poängdialogens mobilknappar syns på 390 px", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await loginAsAdmin(page);
+
+  const tournamentName = `Score Buttons ${Date.now()}`;
+  let response = await page.request.post("/api/tournaments", {
+    data: {
+      name: tournamentName,
+      starts_at: "2026-06-14T10:00",
+      group_count: 2,
+      qualifiers_per_group: 1,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+  const tournament = await response.json() as { id: number };
+
+  await page.request.post(`/api/tournaments/${tournament.id}/participants`, {
+    data: { name: "Lag 1", kind: "team", seed: 1 },
+  });
+  await page.request.post(`/api/tournaments/${tournament.id}/participants`, {
+    data: { name: "Lag 2", kind: "team", seed: 2 },
+  });
+
+  await page.request.post(`/api/tournaments/${tournament.id}/generate`, {
+    data: { confirm_reset: true },
+  });
+
+  await page.goto(`/tournaments/${tournament.id}#alla-matcher`);
+  await expect(page.getByText("Alla matcher")).toBeVisible();
+
+  await page.locator("button").filter({ hasText: "Poäng" }).first().click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+
+  const metrics = await page.evaluate(() => {
+    const dialog = document.querySelector(".modal-panel");
+    if (!dialog) return null;
+    const dialogBox = dialog.getBoundingClientRect();
+    const actions = dialog.querySelector(".modal-actions");
+    if (!actions) return null;
+    const actionButtons = actions.querySelectorAll("button");
+    const buttonsVisible = Array.from(actionButtons).every((btn) => {
+      const box = btn.getBoundingClientRect();
+      return box.right <= dialogBox.right + 2 && box.left >= dialogBox.left - 2;
+    });
+    return {
+      documentWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
+      viewportWidth: window.innerWidth,
+      dialogFitsViewport: dialogBox.right <= window.innerWidth + 2,
+      buttonsVisible,
+    };
+  });
+
+  expect(metrics).not.toBeNull();
+  expect(metrics!.documentWidth).toBeLessThanOrEqual((metrics!.viewportWidth ?? 0) + 10);
+  expect(metrics!.dialogFitsViewport).toBeTruthy();
+  expect(metrics!.buttonsVisible).toBeTruthy();
+});
+
 test("Live TV rymmer långa lagnamn på 1920-skärm", async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await loginAsAdmin(page);

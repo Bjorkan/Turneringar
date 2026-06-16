@@ -1266,6 +1266,11 @@ button.filter-chip:focus-visible {
   text-align: center;
 }
 
+.score-matchup strong {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .score-matchup span,
 .score-separator {
   color: var(--blue);
@@ -1275,6 +1280,13 @@ button.filter-chip:focus-visible {
 
 .score-dialog-form {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 100%;
+}
+
+.score-dialog-form label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .modal-actions {
