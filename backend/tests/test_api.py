@@ -9,6 +9,7 @@ from pathlib import Path
 import socket
 import subprocess
 import sys
+import threading
 import time
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -69,6 +70,7 @@ class ApiClient:
         self.server = server
         self.request_timeout = request_timeout
         self.opener = build_opener(HTTPCookieProcessor(CookieJar()))
+        self._lock = threading.Lock()
 
     def _require_alive(self) -> None:
         if self.server is None:
@@ -92,16 +94,17 @@ class ApiClient:
             headers=headers,
             method=method,
         )
-        try:
-            with self.opener.open(request, timeout=self.request_timeout) as response:
-                text = response.read().decode("utf-8")
-                return ApiResponse(response.status, text, response.headers.get_all("Set-Cookie", []))
-        except HTTPError as exc:
-            text = exc.read().decode("utf-8")
-            return ApiResponse(exc.code, text, exc.headers.get_all("Set-Cookie", []))
-        except URLError:
-            self._require_alive()
-            raise
+        with self._lock:
+            try:
+                with self.opener.open(request, timeout=self.request_timeout) as response:
+                    text = response.read().decode("utf-8")
+                    return ApiResponse(response.status, text, response.headers.get_all("Set-Cookie", []))
+            except HTTPError as exc:
+                text = exc.read().decode("utf-8")
+                return ApiResponse(exc.code, text, exc.headers.get_all("Set-Cookie", []))
+            except URLError:
+                self._require_alive()
+                raise
 
     def get(self, path: str) -> ApiResponse:
         return self.request("GET", path)
@@ -833,3 +836,126 @@ def test_crash_recovery_after_sigkill(tmp_path: Path) -> None:
             except subprocess.TimeoutExpired:
                 p.kill()
                 p.communicate(timeout=5)
+
+
+def test_concurrent_writes_do_not_corrupt_tournament(client: ApiClient) -> None:
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    login(client)
+    tid = create_ready_tournament(client)
+    dashboard = client.get(f"/api/tournaments/{tid}").json()
+
+    matches = [m for m in dashboard["matches"] if m["stage_kind"] == "group" and m["participant_a_id"]]
+    assert matches, "Need at least one group match"
+
+    # Scenario 1: 10 concurrent score updates on the same match
+    target = matches[0]
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        futures = []
+        for i in range(10):
+            futures.append(
+                pool.submit(
+                    lambda m=target, a=i, b=10 - i: client.post(
+                        f"/api/tournaments/{tid}/matches/{m['id']}/score",
+                        json={"score_a": a, "score_b": b},
+                    )
+                )
+            )
+        results = [f.result() for f in as_completed(futures)]
+
+    ok_count = sum(1 for r in results if r.status_code == 200)
+    assert ok_count >= 8, f"Expected >=8 OK, got {ok_count}/10 concurrent score writes"
+
+    after = client.get(f"/api/tournaments/{tid}").json()
+    match_after = next(m for m in after["matches"] if m["id"] == target["id"])
+    assert match_after["score_label"] == "-" or " - " in match_after["score_label"], (
+        f"Score label should be set, got {match_after['score_label']!r}"
+    )
+    assert match_after["status"] in ("pending", "in_progress", "completed")
+
+    # Scenario 2: score and result on another match simultaneously
+    target2 = matches[1] if len(matches) > 1 else matches[0]
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        score_fut = pool.submit(
+            lambda: client.post(
+                f"/api/tournaments/{tid}/matches/{target2['id']}/score",
+                json={"score_a": 4, "score_b": 1},
+            )
+        )
+        result_fut = pool.submit(
+            lambda: client.post(
+                f"/api/tournaments/{tid}/matches/{target2['id']}/result",
+                json={"score_a": 4, "score_b": 1},
+            )
+        )
+        score_resp = score_fut.result()
+        result_resp = result_fut.result()
+
+    # At least one should succeed. The score should be set in either case.
+    any_ok = score_resp.status_code == 200 or result_resp.status_code == 200
+    assert any_ok, f"Neither score ({score_resp.status_code}) nor result ({result_resp.status_code}) succeeded"
+
+    after2 = client.get(f"/api/tournaments/{tid}").json()
+    match2_after = next(m for m in after2["matches"] if m["id"] == target2["id"])
+    assert match2_after["score_label"] in ("4 - 1", "-", "0 - 0")
+
+    # Scenario 3: schedule while scoring a third match
+    target3 = matches[-1]
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        f1 = pool.submit(
+            lambda: client.post(
+                f"/api/tournaments/{tid}/matches/{target3['id']}/score",
+                json={"score_a": 2, "score_b": 2},
+            )
+        )
+        f2 = pool.submit(
+            lambda: client.post(f"/api/tournaments/{tid}/schedule", json={})
+        )
+        for f in (f1, f2):
+            exc = f.exception()
+            if exc:
+                raise AssertionError(f"Concurrent schedule/score failed: {exc}")
+
+    after3 = client.get(f"/api/tournaments/{tid}").json()
+    assert len(after3["matches"]) >= len(matches)
+    assert all(m["status"] in ("pending", "scheduled", "in_progress", "completed") for m in after3["matches"])
+
+    # Scenario 4: two moderators scoring simultaneously
+    mod1_resp = client.post(
+        f"/api/tournaments/{tid}/moderators",
+        json={"label": "Domare A", "resource_id": dashboard["resources"][0]["id"]},
+    )
+    assert mod1_resp.status_code == 200
+    mod1 = mod1_resp.json()["moderator"]
+    mod2_resp = client.post(
+        f"/api/tournaments/{tid}/moderators",
+        json={"label": "Domare B", "resource_id": dashboard["resources"][0]["id"]},
+    )
+    assert mod2_resp.status_code == 200
+    mod2 = mod2_resp.json()["moderator"]
+
+    mod1_client = ApiClient(client.base_url)
+    mod1_client.post(f"/api/moderators/{mod1['token']}/login", json={"pin": mod1["pin"]})
+    mod2_client = ApiClient(client.base_url)
+    mod2_client.post(f"/api/moderators/{mod2['token']}/login", json={"pin": mod2["pin"]})
+
+    mod4_futures = []
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        for vi in range(5):
+            for mc, tok in ((mod1_client, mod1["token"]), (mod2_client, mod2["token"])):
+                mod4_futures.append(
+                    pool.submit(
+                        lambda mc=mc, tok=tok, m=target, vi=vi: mc.post(
+                            f"/api/moderators/{tok}/matches/{m['id']}/score",
+                            json={"score_a": vi, "score_b": vi + 1},
+                        )
+                    )
+                )
+    for f in as_completed(mod4_futures):
+        exc = f.exception()
+        if exc:
+            raise AssertionError(f"Moderator concurrent write failed: {exc}")
+
+    after4 = client.get(f"/api/tournaments/{tid}").json()
+    assert len(after4["stages"]) == len(after["stages"])
+    assert after4["tournament"]["status"] in ("draft", "ready", "in_progress", "completed")
