@@ -81,8 +81,8 @@ jobs:
           curl --fail --silent http://127.0.0.1:8000/assets/app.js > /tmp/app.js
           curl --fail --silent http://127.0.0.1:8000/assets/tv.js > /tmp/tv.js
           chunk_ref=$(grep -o '\./chunks/[^"]*\.js' /tmp/app.js | head -n 1)
+          test -n "$chunk_ref"
           chunk_path="/assets/chunks/${chunk_ref#./chunks/}"
-          test -n "$chunk_path"
           curl --fail --silent "http://127.0.0.1:8000${chunk_path}" > /tmp/react-chunk.js
           test -s /tmp/index.html
           test -s /tmp/app.js
