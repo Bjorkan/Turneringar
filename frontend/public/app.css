@@ -1791,19 +1791,47 @@ label {
 }
 
 .activity-icon {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 34px;
   height: 34px;
   border-radius: 50%;
   background: #dbeafe;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1d4ed8;
+  flex-shrink: 0;
 }
 
 .activity-icon.green {
   background: #dff8eb;
+  color: #166534;
 }
 
 .activity-icon.blue {
   background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.activity-icon.participants::before {
+  content: "P";
+}
+
+.activity-icon.settings::before {
+  content: "S";
+}
+
+.activity-icon.schedule::before {
+  content: "\29D6";
+}
+
+.activity-icon.score::before {
+  content: "R";
+}
+
+.activity-icon.structure::before {
+  content: "T";
 }
 
 .quick-panel {

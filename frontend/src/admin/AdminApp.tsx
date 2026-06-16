@@ -581,6 +581,7 @@ function LiveTvAdmin({ onNotice, onError }: { onNotice: NoticeHandler; onError: 
                       <div className="tv-link-url">
                         <input value={tvUrl(link)} readOnly aria-label="TV-länk" title={tvUrl(link)} />
                         <a className="button subtle" href={`/tv/${link.code}`} target="_blank" rel="noreferrer">Öppna</a>
+                        <button type="button" className="button subtle" onClick={() => { navigator.clipboard.writeText(tvUrl(link)); }}>Kopiera</button>
                         <button type="button" className="button danger-outline" onClick={() => deleteTvLink(link)}>Ta bort</button>
                       </div>
                       {draft ? (
@@ -1233,9 +1234,12 @@ function TournamentView({
                 <section className="panel">
                   <h2>Senaste aktivitet</h2>
                   <div className="activity-list">
-                    <article><span className="activity-icon green" /><div><strong>{participants.length} deltagare registrerade</strong><small>Aktuell deltagarlista</small></div></article>
+                    <article><span className="activity-icon green participants" /><div><strong>{participants.length} deltagare registrerade</strong><small>Aktuell deltagarlista</small></div></article>
 {!events.length ? <p className="empty">Inga händelser ännu. Händelser visas när matcher spelas, scheman uppdateras eller deltagare läggs till.</p> : null}
-                    {events.slice(0, 5).map((event) => <article key={event.id}><span className="activity-icon blue" /><div><strong>{eventText[event.kind] || event.kind}</strong><small>{formatTime(event.created_at)}</small></div></article>)}
+                    {events.slice(0, 5).map((event) => {
+                      const iconType = event.kind.startsWith("score") || event.kind.startsWith("result") ? "score" : event.kind.startsWith("schedule") ? "schedule" : event.kind.startsWith("structure") || event.kind.startsWith("bracket") ? "structure" : event.kind.startsWith("settings") ? "settings" : "participants";
+                      return <article key={event.id}><span className={`activity-icon blue ${iconType}`} /><div><strong>{eventText[event.kind] || event.kind}</strong><small>{formatTime(event.created_at)}</small></div></article>;
+                    })}
                   </div>
                 </section>
               </aside>
