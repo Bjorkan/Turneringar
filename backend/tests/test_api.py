@@ -9,6 +9,7 @@ import socket
 import subprocess
 import sys
 import time
+from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin
 from urllib.request import HTTPCookieProcessor, Request, build_opener
@@ -30,22 +31,54 @@ def free_port() -> int:
         return int(sock.getsockname()[1])
 
 
+class ServerProcess:
+    def __init__(self, process: subprocess.Popen[str]) -> None:
+        self._process = process
+
+    def health(self) -> str | None:
+        if self._process.poll() is None:
+            return None
+        stdout, stderr = self._process.communicate()
+        return (
+            f"Server died with code {self._process.returncode}\n"
+            f"--- STDOUT ---\n{stdout}\n--- STDERR ---\n{stderr}"
+        )
+
+    def terminate(self) -> None:
+        self._process.terminate()
+        try:
+            self._process.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            self._process.kill()
+            self._process.communicate(timeout=5)
+
+
 class ApiResponse:
     def __init__(self, status_code: int, body: str, set_cookies: list[str] | None = None) -> None:
         self.status_code = status_code
         self.text = body
         self.set_cookies = set_cookies or []
 
-    def json(self) -> object:
+    def json(self) -> Any:
         return json.loads(self.text)
 
 
 class ApiClient:
-    def __init__(self, base_url: str) -> None:
+    def __init__(self, base_url: str, server: ServerProcess | None = None, request_timeout: int = 5) -> None:
         self.base_url = base_url
+        self.server = server
+        self.request_timeout = request_timeout
         self.opener = build_opener(HTTPCookieProcessor(CookieJar()))
 
+    def _require_alive(self) -> None:
+        if self.server is None:
+            return
+        msg = self.server.health()
+        if msg:
+            pytest.fail(msg)
+
     def request(self, method: str, path: str, payload: dict[str, object] | None = None) -> ApiResponse:
+        self._require_alive()
         body = None
         headers = {}
         if payload is not None:
@@ -58,12 +91,15 @@ class ApiClient:
             method=method,
         )
         try:
-            with self.opener.open(request, timeout=5) as response:
+            with self.opener.open(request, timeout=self.request_timeout) as response:
                 text = response.read().decode("utf-8")
                 return ApiResponse(response.status, text, response.headers.get_all("Set-Cookie", []))
         except HTTPError as exc:
             text = exc.read().decode("utf-8")
             return ApiResponse(exc.code, text, exc.headers.get_all("Set-Cookie", []))
+        except URLError:
+            self._require_alive()
+            raise
 
     def get(self, path: str) -> ApiResponse:
         return self.request("GET", path)
@@ -76,7 +112,11 @@ class ApiClient:
 
 
 @pytest.fixture()
-def client(tmp_path: Path) -> Iterator[ApiClient]:
+def client(request: pytest.FixtureRequest, tmp_path: Path) -> Iterator[ApiClient]:
+    params: dict[str, Any] = getattr(request, "param", {})
+    startup_timeout = params.get("startup_timeout", 10)
+    request_timeout = params.get("request_timeout", 5)
+
     port = free_port()
     env = {
         **dict(os.environ),
@@ -104,31 +144,27 @@ def client(tmp_path: Path) -> Iterator[ApiClient]:
         stderr=subprocess.PIPE,
         text=True,
     )
-    api_client = ApiClient(f"http://127.0.0.1:{port}")
-    deadline = time.monotonic() + 10
+    server = ServerProcess(process)
+    api_client = ApiClient(f"http://127.0.0.1:{port}", server, request_timeout)
+    deadline = time.monotonic() + startup_timeout
     while time.monotonic() < deadline:
-        if process.poll() is not None:
-            stdout, stderr = process.communicate()
-            pytest.fail(f"uvicorn exited early\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}")
+        health = server.health()
+        if health:
+            pytest.fail(f"uvicorn exited early\n{health}")
         try:
             if api_client.get("/api/session").status_code == 200:
                 break
         except URLError:
             time.sleep(0.1)
     else:
-        process.terminate()
-        stdout, stderr = process.communicate(timeout=5)
-        pytest.fail(f"uvicorn did not start\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}")
+        server.terminate()
+        health = server.health()
+        pytest.fail(f"uvicorn did not start\n{health}")
 
     try:
         yield api_client
     finally:
-        process.terminate()
-        try:
-            process.communicate(timeout=5)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.communicate(timeout=5)
+        server.terminate()
 
 
 def login(client: ApiClient) -> None:
